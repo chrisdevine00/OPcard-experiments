@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>OPTCG Card Viewer — Experiment 2</title>
+  <style>
+    /* =============================================
+       CSS CUSTOM PROPERTIES
+       ============================================= */
+    :root {
+      --bg-dark: #0a0a0a;
+      --bg-gradient: #1a1a2e;
+      --text-primary: #e0e0e0;
+      --text-secondary: #888;
+      --card-width-mobile: 280px;
+      --card-width-desktop: 320px;
+      --card-aspect: 5 / 7;
+      --card-border-radius: 6px;
+      --card-glow-color: rgba(100, 140, 255, 0.3);
+      --transition-speed: 0.3s;
+      --tilt-perspective: 900px;
+      --shadow-base: 0 4px 24px rgba(0, 0, 0, 0.6);
+      --card-back-img: url('leaderCard_back.png');
+      /* Holo shimmer tunables */
+      --holo-gradient: linear-gradient(
+        115deg,
+        #ff000088, #ff880088, #ffff0088,
+        #00ff0088, #0088ff88, #8800ff88, #ff000088
+      );
+      --holo-opacity: 0.22;
+      --holo-blend: color-dodge;
+      --holo-size: 250% 250%;
+      --holo-texture-opacity: 0.5;
+      --holo-texture-spacing: 4px;
+      --holo-texture-shift: 1.5;
+      --bar-height: 70px;
+      --bar-bg: rgba(15, 15, 25, 0.85);
+      --btn-bg: rgba(255, 255, 255, 0.1);
+      --btn-bg-hover: rgba(255, 255, 255, 0.18);
+      --btn-text: #e0e0e0;
+      --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    /* =============================================
+       RESET & BASE
+       ============================================= */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-gradient) 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem calc(var(--bar-height) + 1.5rem);
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* =============================================
+       HEADER
+       ============================================= */
+    .header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      text-align: center;
+      padding: 0.75rem 1rem;
+    }
+
+    .header-title {
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      opacity: 0.6;
+    }
+
+    /* =============================================
+       CARD CONTAINER & 3D TILT
+       ============================================= */
+    .card-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .card-perspective {
+      perspective: var(--tilt-perspective);
+      touch-action: manipulation;
+      position: relative;
+    }
+
+    .card-frame {
+      width: var(--card-width-mobile);
+      aspect-ratio: var(--card-aspect);
+      position: relative;
+      transform-style: preserve-3d;
+      will-change: transform, box-shadow;
+      box-shadow: 0 0 20px var(--card-glow-color), var(--shadow-base);
+      cursor: pointer;
+    }
+
+    @media (min-width: 768px) {
+      .card-frame {
+        width: var(--card-width-desktop);
+      }
+    }
+
+    /* =============================================
+       CARD FACES (FRONT & BACK)
+       ============================================= */
+    .card-face {
+      position: absolute;
+      inset: 0;
+      border-radius: var(--card-border-radius);
+      overflow: hidden;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+
+    .card-front {
+      z-index: 1;
+    }
+
+    .card-back {
+      transform: rotateY(180deg);
+      background: var(--card-back-img) center / cover no-repeat;
+      border-radius: 14px;
+    }
+
+    /* =============================================
+       HOLO SHIMMER OVERLAY
+       ============================================= */
+    .holo-overlay {
+      position: absolute;
+      inset: 0;
+      border-radius: var(--card-border-radius);
+      background: var(--holo-gradient);
+      background-size: var(--holo-size);
+      background-position: center;
+      mix-blend-mode: var(--holo-blend);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 2;
+      transition: opacity var(--transition-speed) ease;
+      will-change: background, opacity;
+      transform: translateZ(0);
+    }
+
+    .holo-eligible .holo-overlay {
+      opacity: var(--holo-opacity);
+    }
+
+    /* Fine holographic line texture */
+    .holo-texture {
+      position: absolute;
+      inset: 0;
+      border-radius: var(--card-border-radius);
+      pointer-events: none;
+      z-index: 3;
+      opacity: 0;
+      transition: opacity var(--transition-speed) ease;
+      will-change: background-position, opacity;
+      transform: translateZ(0);
+      background:
+        repeating-linear-gradient(
+          45deg,
+          transparent,
+          transparent var(--holo-texture-spacing),
+          rgba(255,255,255,0.15) var(--holo-texture-spacing),
+          rgba(255,255,255,0.15) calc(var(--holo-texture-spacing) + 1px)
+        ),
+        repeating-linear-gradient(
+          -45deg,
+          transparent,
+          transparent var(--holo-texture-spacing),
+          rgba(255,255,255,0.08) var(--holo-texture-spacing),
+          rgba(255,255,255,0.08) calc(var(--holo-texture-spacing) + 1px)
+        );
+      background-size: 200% 200%;
+      background-position: center;
+      mix-blend-mode: overlay;
+    }
+
+    .holo-eligible .holo-texture {
+      opacity: var(--holo-texture-opacity);
+    }
+
+    /* =============================================
+       CARD IMAGE
+       ============================================= */
+    .card-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      opacity: 0;
+      transition: opacity var(--transition-speed) ease;
+    }
+
+    .card-image.loaded {
+      opacity: 1;
+    }
+
+    /* =============================================
+       LOADING STATE
+       ============================================= */
+    .card-loader {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 10, 10, 0.8);
+      border-radius: var(--card-border-radius);
+      transition: opacity var(--transition-speed) ease;
+    }
+
+    .card-loader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Pulsing card outline loader */
+    .loader-outline {
+      width: 60%;
+      aspect-ratio: var(--card-aspect);
+      border: 2px solid var(--card-glow-color);
+      border-radius: var(--card-border-radius);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.95); }
+      50% { opacity: 1; transform: scale(1); }
+    }
+
+    /* =============================================
+       ERROR STATE
+       ============================================= */
+    .card-error {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      background: rgba(10, 10, 10, 0.9);
+      border-radius: var(--card-border-radius);
+      padding: 1.5rem;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition-speed) ease;
+    }
+
+    .card-error.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .card-error .error-icon {
+      font-size: 2rem;
+    }
+
+    .card-error .error-text {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    /* =============================================
+       CARD INFO
+       ============================================= */
+    .card-info {
+      text-align: center;
+      min-height: 3.5rem;
+    }
+
+    .card-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .card-meta {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .card-meta span {
+      white-space: nowrap;
+    }
+
+    /* Rarity badge */
+    .rarity-badge {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-top: 0.35rem;
+    }
+    .rarity-badge.rarity-sec  { background: #c9a84c; color: #1a1000; }
+    .rarity-badge.rarity-sr   { background: #a0a8b8; color: #1a1a2e; }
+    .rarity-badge.rarity-r    { background: #b87840; color: #1a1000; }
+    .rarity-badge.rarity-l    { background: #c0392b; color: #fff; }
+    .rarity-badge.rarity-sp   { background: #9b59b6; color: #fff; }
+    .rarity-badge.rarity-default { background: rgba(255,255,255,0.12); color: var(--text-secondary); }
+
+    /* Variant navigation arrows */
+    .variant-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 44px;
+      height: 44px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.35);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 1.4rem;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      transition: background 0.15s ease, opacity 0.15s ease;
+      opacity: 0.5;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+
+    .variant-arrow:hover {
+      background: rgba(0, 0, 0, 0.55);
+      opacity: 1;
+    }
+
+    .variant-arrow.visible {
+      display: flex;
+    }
+
+    .variant-prev { left: -54px; }
+    .variant-next { right: -54px; }
+
+    @media (max-width: 480px) {
+      .variant-prev { left: -48px; }
+      .variant-next { right: -48px; }
+    }
+
+    /* Variant label + dot indicator */
+    .variant-info {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 0.2rem;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .variant-info.visible {
+      display: flex;
+    }
+
+    .variant-label {
+      opacity: 0.8;
+    }
+
+    .variant-dots {
+      display: flex;
+      gap: 4px;
+    }
+
+    .variant-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.25);
+      transition: background 0.2s ease;
+    }
+
+    .variant-dot.active {
+      background: rgba(255, 255, 255, 0.8);
+    }
+
+    /* Variant hint icon (shown when card has multiple variants) */
+    .variant-hint {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.5);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 4;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+
+    .variant-hint.visible {
+      display: flex;
+    }
+
+    /* Variant tray overlay */
+    .variant-tray-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 200;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .variant-tray-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .variant-tray {
+      width: 100%;
+      max-width: 500px;
+      background: var(--bar-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px 16px 0 0;
+      padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+      transform: translateY(100%);
+      transition: transform 0.25s ease;
+    }
+
+    .variant-tray-backdrop.open .variant-tray {
+      transform: translateY(0);
+    }
+
+    .variant-tray-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    .variant-tray-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .variant-tray-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s ease;
+    }
+
+    .variant-tray-close:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .variant-tray-items {
+      display: flex;
+      gap: 0.75rem;
+      overflow-x: auto;
+      padding-bottom: 0.25rem;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .variant-tray-item {
+      flex-shrink: 0;
+      cursor: pointer;
+      text-align: center;
+      transition: transform 0.15s ease;
+    }
+
+    .variant-tray-item:hover {
+      transform: scale(1.05);
+    }
+
+    .variant-tray-item img {
+      width: 70px;
+      aspect-ratio: 5 / 7;
+      object-fit: cover;
+      border-radius: 4px;
+      border: 2px solid transparent;
+      transition: border-color 0.15s ease;
+      display: block;
+    }
+
+    .variant-tray-item.active img {
+      border-color: rgba(100, 140, 255, 0.8);
+      box-shadow: 0 0 8px rgba(100, 140, 255, 0.4);
+    }
+
+    .variant-tray-item-label {
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      margin-top: 0.3rem;
+      white-space: nowrap;
+    }
+
+    .variant-tray-empty {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      padding: 1rem 0;
+      text-align: center;
+      width: 100%;
+    }
+
+    /* Long-press hint tooltip */
+    .long-press-hint {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-top: 0.3rem;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+
+    .long-press-hint.visible {
+      opacity: 0.7;
+    }
+
+    /* Position counter (e.g. "1 / 121") */
+    .position-counter {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+      opacity: 0.7;
+      display: none;
+    }
+
+    .position-counter.visible {
+      display: block;
+    }
+
+    /* =============================================
+       BOTTOM CONTROL BAR
+       ============================================= */
+    .control-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      min-height: var(--bar-height);
+      background: var(--bar-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px 14px 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.65rem 1rem;
+      padding-bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));
+      z-index: 100;
+    }
+
+    .control-btn {
+      height: 44px;
+      min-width: 44px;
+      padding: 0 1.25rem;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      font-family: var(--font-family);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .control-btn:hover {
+      background: var(--btn-bg-hover);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .control-btn:active {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    .control-btn.active {
+      background: rgba(100, 140, 255, 0.25);
+      border-color: rgba(100, 140, 255, 0.4);
+    }
+
+    /* Fallback tilt arrow buttons (visible only when gyro unavailable on mobile) */
+    .fallback-arrows {
+      display: none;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .fallback-arrows.visible {
+      display: flex;
+    }
+
+    .arrow-btn {
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s ease;
+    }
+
+    .arrow-btn:hover {
+      background: var(--btn-bg-hover);
+    }
+
+    .arrow-btn:active {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    /* Card ID input */
+    .card-id-input {
+      height: 44px;
+      width: 110px;
+      padding: 0 0.75rem;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      font-family: var(--font-family);
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .card-id-input::placeholder {
+      color: rgba(255, 255, 255, 0.35);
+    }
+
+    .card-id-input:focus {
+      border-color: rgba(100, 140, 255, 0.5);
+    }
+
+    /* Set selector dropdown */
+    .set-selector {
+      height: 44px;
+      padding: 0 0.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      font-family: var(--font-family);
+      font-size: 0.8rem;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.15s ease;
+      max-width: 200px;
+      -webkit-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23888' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      padding-right: 24px;
+    }
+
+    .set-selector:focus {
+      border-color: rgba(100, 140, 255, 0.5);
+    }
+
+    .set-selector option {
+      background: #1a1a2e;
+      color: var(--text-primary);
+    }
+
+    /* Separator between control groups */
+    .control-sep {
+      width: 1px;
+      height: 28px;
+      background: rgba(255, 255, 255, 0.1);
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-title">OPTCG Card Viewer</div>
+  </div>
+
+  <div class="card-container">
+    <!-- Perspective wrapper for 3D tilt -->
+    <div class="card-perspective" id="cardPerspective">
+      <button class="variant-arrow variant-prev" id="variantPrev" title="Previous card">&#8249;</button>
+      <button class="variant-arrow variant-next" id="variantNext" title="Next card">&#8250;</button>
+      <div class="card-frame" id="cardFrame">
+        <!-- Front face -->
+        <div class="card-face card-front">
+          <img class="card-image" id="cardImage" alt="Card image">
+          <div class="holo-overlay" id="holoOverlay"></div>
+          <div class="holo-texture" id="holoTexture"></div>
+          <div class="variant-hint" id="variantHint" title="Hold for variants">⧉</div>
+          <div class="card-loader" id="cardLoader">
+            <div class="loader-outline"></div>
+          </div>
+          <div class="card-error" id="cardError">
+            <div class="error-icon">⚠</div>
+            <div class="error-text" id="errorText">Could not load card.</div>
+          </div>
+        </div>
+        <!-- Back face -->
+        <div class="card-face card-back"></div>
+      </div>
+    </div>
+
+    <!-- Card info below the image -->
+    <div class="card-info" id="cardInfo">
+      <div class="card-name" id="cardName"></div>
+      <div class="card-meta" id="cardMeta"></div>
+      <div id="rarityBadge" class="rarity-badge" style="display:none"></div>
+      <div class="variant-info" id="variantInfo">
+        <span class="variant-label" id="variantLabel"></span>
+        <span class="variant-dots" id="variantDots"></span>
+      </div>
+      <div class="position-counter" id="positionCounter"></div>
+      <div class="long-press-hint" id="longPressHint">Hold card for alternate versions</div>
+    </div>
+  </div>
+
+  <!-- Variant tray overlay -->
+  <div class="variant-tray-backdrop" id="variantTrayBackdrop">
+    <div class="variant-tray" id="variantTray">
+      <div class="variant-tray-header">
+        <span class="variant-tray-title" id="variantTrayTitle">Alternate Versions</span>
+        <button class="variant-tray-close" id="variantTrayClose">&times;</button>
+      </div>
+      <div class="variant-tray-items" id="variantTrayItems"></div>
+    </div>
+  </div>
+
+  <!-- Bottom control bar -->
+  <div class="control-bar" id="controlBar">
+    <select class="set-selector" id="setSelector">
+      <option value="OP-01">OP-01 Romance Dawn</option>
+      <option value="OP-02">OP-02 Paramount War</option>
+      <option value="OP-03">OP-03 Pillars of Strength</option>
+      <option value="OP-04">OP-04 Kingdoms of Intrigue</option>
+      <option value="OP-05">OP-05 Awakening of the New Era</option>
+      <option value="OP-06">OP-06 Wings of the Captain</option>
+      <option value="OP-07">OP-07 500 Years in the Future</option>
+      <option value="EB-01">EB-01 Memorial Collection</option>
+      <option value="OP-08">OP-08 Two Legends</option>
+      <option value="OP-09">OP-09 Emperors in the New World</option>
+      <option value="OP-10">OP-10 Royal Blood</option>
+      <option value="OP-11">OP-11 A Fist of Divine Speed</option>
+      <option value="EB-02">EB-02 Anime 25th Collection</option>
+      <option value="OP-12">OP-12 Legacy of the Master</option>
+      <option value="PRB-01">PRB-01 Premium Booster: The Best</option>
+      <option value="PRB-02">PRB-02 Premium Booster: The Best Vol. 2</option>
+      <option value="OP-13">OP-13 Carrying On His Will</option>
+      <option value="OP14-EB04">OP-14/EB-04 The Azure Sea's Seven</option>
+      <option value="EB-03">EB-03 One Piece Heroines Edition</option>
+    </select>
+    <div class="control-sep"></div>
+    <input type="text" class="card-id-input" id="cardIdInput" placeholder="OP01-001" maxlength="10" autocomplete="off" spellcheck="false">
+    <button class="control-btn" id="loadBtn">Load</button>
+    <div class="control-sep"></div>
+    <button class="control-btn" id="flipBtn">Flip Card</button>
+    <button class="control-btn" id="holoBtn">Holo: Auto</button>
+    <button class="control-btn" id="demoBtn">Auto Demo</button>
+    <!-- Fallback tilt arrows (shown when gyroscope is unavailable) -->
+    <div class="control-sep" id="arrowSep" style="display:none"></div>
+    <div class="fallback-arrows" id="fallbackArrows">
+      <button class="arrow-btn" data-rx="12" data-ry="0" title="Tilt Up">&uarr;</button>
+      <button class="arrow-btn" data-rx="-12" data-ry="0" title="Tilt Down">&darr;</button>
+      <button class="arrow-btn" data-rx="0" data-ry="-12" title="Tilt Left">&larr;</button>
+      <button class="arrow-btn" data-rx="0" data-ry="12" title="Tilt Right">&rarr;</button>
+      <button class="arrow-btn" data-rx="0" data-ry="0" title="Reset" style="font-size:0.7rem">Reset</button>
+    </div>
+  </div>
+
+  <script>
+    /* =============================================
+       CONFIGURATION
+       ============================================= */
+    const API_BASE = 'https://optcgapi.com/api';
+    const IMAGE_BASE = 'https://optcgapi.com/media/static/Card_Images';
+    const HOLO_RARITIES = ['L', 'R', 'SR', 'SEC', 'SP'];
+
+    /* =============================================
+       DOM REFERENCES
+       ============================================= */
+    const cardImage = document.getElementById('cardImage');
+    const cardLoader = document.getElementById('cardLoader');
+    const cardError = document.getElementById('cardError');
+    const errorText = document.getElementById('errorText');
+    const cardName = document.getElementById('cardName');
+    const cardMeta = document.getElementById('cardMeta');
+    const cardFrame = document.getElementById('cardFrame');
+    const cardPerspective = document.getElementById('cardPerspective');
+    const flipBtn = document.getElementById('flipBtn');
+    const loadBtn = document.getElementById('loadBtn');
+    const cardIdInput = document.getElementById('cardIdInput');
+    const demoBtn = document.getElementById('demoBtn');
+    const holoOverlay = document.getElementById('holoOverlay');
+    const holoTexture = document.getElementById('holoTexture');
+    const holoBtn = document.getElementById('holoBtn');
+    const variantPrev = document.getElementById('variantPrev');
+    const variantNext = document.getElementById('variantNext');
+    const variantInfo = document.getElementById('variantInfo');
+    const variantLabel = document.getElementById('variantLabel');
+    const variantDots = document.getElementById('variantDots');
+    const setSelector = document.getElementById('setSelector');
+    const positionCounter = document.getElementById('positionCounter');
+    const variantHint = document.getElementById('variantHint');
+    const variantTrayBackdrop = document.getElementById('variantTrayBackdrop');
+    const variantTray = document.getElementById('variantTray');
+    const variantTrayItems = document.getElementById('variantTrayItems');
+    const variantTrayClose = document.getElementById('variantTrayClose');
+    const variantTrayTitle = document.getElementById('variantTrayTitle');
+    const longPressHint = document.getElementById('longPressHint');
+
+    /* =============================================
+       SET BROWSING — Fetch & Deduplication
+       ============================================= */
+    let setCardList = [];   // ordered unique base cards for arrow browsing
+    let variantMap = {};    // card_set_id → array of all variants
+    let setIndex = 0;       // current position in setCardList
+    let isLoadingSet = false;
+
+    /**
+     * Fetch all cards for a set, deduplicate into setCardList + variantMap.
+     * setCardList: one entry per unique card_set_id, sorted by ID.
+     * variantMap: card_set_id → [all variant objects].
+     */
+    async function fetchSetData(setId) {
+      isLoadingSet = true;
+      if (variantTrayOpen) closeVariantTray();
+      showLoader();
+      positionCounter.classList.remove('visible');
+
+      try {
+        const res = await fetch(`${API_BASE}/sets/${setId}/`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!Array.isArray(data) || data.length === 0) throw new Error('Empty set');
+
+        // Group by card_set_id
+        const groups = {};
+        for (const card of data) {
+          const id = card.card_set_id;
+          if (!id) continue;
+          if (!groups[id]) groups[id] = [];
+          groups[id].push(card);
+        }
+
+        // Sort keys naturally (OP01-001, OP01-002, ...)
+        const sortedIds = Object.keys(groups).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+        // Build setCardList (base card = first entry without _p suffix, or just first)
+        setCardList = sortedIds.map(id => {
+          const variants = groups[id];
+          const base = variants.find(v => !v.card_image_id || !v.card_image_id.includes('_p')) || variants[0];
+          return base;
+        });
+
+        // Build variantMap
+        variantMap = {};
+        for (const id of sortedIds) {
+          variantMap[id] = groups[id];
+        }
+
+        setIndex = 0;
+        isLoadingSet = false;
+
+        // Clear old preloads, show arrows, load first card + preload window
+        clearPreloadCache();
+        updateSetArrows();
+        if (setCardList.length > 0) {
+          await showSetCard(0);
+          preloadWindow(0);
+        }
+
+      } catch (err) {
+        isLoadingSet = false;
+        hideLoader();
+        showError(`Could not load set "${setId}". Try typing a card ID manually.`);
+        setCardList = [];
+        variantMap = {};
+        positionCounter.classList.remove('visible');
+        updateSetArrows();
+      }
+    }
+
+    /**
+     * Display a card from setCardList by index.
+     */
+    async function showSetCard(index) {
+      const data = setCardList[index];
+      if (!data) return;
+
+      // Flip back to front if needed
+      if (isFlipped) toggleFlip();
+
+      setIndex = index;
+      const cardId = data.card_set_id;
+      const cardVariants = variantMap[cardId] || [data];
+
+      // Update shared variant state
+      variants = cardVariants;
+      variantIndex = 0;
+      currentCardId = cardId;
+
+      const imageUrl = data.card_image || getImageUrl(cardId);
+
+      // If we already have a card showing, crossfade
+      if (cardImage.classList.contains('loaded')) {
+        cardContainer.classList.remove('holo-eligible');
+        cardImage.classList.remove('loaded');
+        await new Promise(r => setTimeout(r, 150));
+      }
+
+      // Only show loader if image isn't preloaded
+      const isPreloaded = preloadCache.has(imageUrl) && preloadCache.get(imageUrl).complete;
+      if (!isPreloaded) showLoader();
+
+      try {
+        await loadImage(imageUrl);
+        hideLoader();
+        showCardInfo(data, cardId);
+        updateVariantUI();
+        updatePositionCounter();
+      } catch {
+        showError(`Could not load card "${cardId}".`);
+      }
+    }
+
+    /**
+     * Update the position counter display.
+     */
+    function updatePositionCounter() {
+      if (setCardList.length > 0) {
+        positionCounter.textContent = `${setIndex + 1} / ${setCardList.length}`;
+        positionCounter.classList.add('visible');
+      } else {
+        positionCounter.classList.remove('visible');
+      }
+    }
+
+    // Set selector change handler
+    setSelector.addEventListener('change', () => {
+      fetchSetData(setSelector.value);
+    });
+
+    /* =============================================
+       CARD LOADING
+       ============================================= */
+
+    /**
+     * Attempt to fetch all variants for a card from the API.
+     * Returns array of card objects on success, null on failure.
+     */
+    async function fetchCardVariants(cardId) {
+      try {
+        const res = await fetch(`${API_BASE}/sets/card/${cardId}/`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) return data;
+        throw new Error('Empty response');
+      } catch {
+        return null;
+      }
+    }
+
+    /**
+     * Parse a variant label from card data.
+     */
+    function getVariantLabel(data, index) {
+      const name = (data.card_name || '').toLowerCase();
+      const imageId = (data.card_image_id || '');
+      if (name.includes('parallel')) return 'Parallel';
+      if (name.includes('manga')) return 'Manga';
+      if (name.includes('alt art')) return 'Alt Art';
+      if (imageId.includes('_p')) return 'Parallel';
+      return index === 0 ? 'Standard' : 'Variant';
+    }
+
+    /**
+     * Construct a direct image URL for a card ID.
+     */
+    function getImageUrl(cardId) {
+      return `${IMAGE_BASE}/${cardId}.jpg`;
+    }
+
+    /**
+     * Load a card image into the page. Returns a promise that resolves
+     * when the image is loaded or rejects on error.
+     */
+    function loadImage(url) {
+      return new Promise((resolve, reject) => {
+        cardImage.classList.remove('loaded');
+        cardImage.src = url;
+        cardImage.onload = () => {
+          cardImage.classList.add('loaded');
+          resolve();
+        };
+        cardImage.onerror = () => reject(new Error('Image failed to load'));
+      });
+    }
+
+    /* =============================================
+       HOLO SHIMMER — Rarity Detection & State
+       ============================================= */
+    let isHoloEligible = false;
+
+    /**
+     * Check if a card qualifies for the holo shimmer effect.
+     * Holo-eligible: L, R, SR, SEC, SP, or any Parallel variant.
+     * Non-eligible: C, UC. Unknown rarity defaults to holo ON.
+     */
+    function checkHoloEligibility(data) {
+      if (!data) return true; // Unknown rarity → default holo ON
+
+      const rarity = (data.rarity || '').toUpperCase();
+      const name = (data.card_name || '').toLowerCase();
+      const imageId = (data.card_image_id || '');
+
+      const isHoloRarity = HOLO_RARITIES.includes(rarity);
+      const isParallel = name.includes('parallel') || imageId.includes('_p');
+
+      return isHoloRarity || isParallel;
+    }
+
+    /**
+     * Get the CSS class suffix for a rarity badge.
+     */
+    function getRarityClass(rarity) {
+      const r = (rarity || '').toUpperCase();
+      if (r === 'SEC') return 'rarity-sec';
+      if (r === 'SR') return 'rarity-sr';
+      if (r === 'R') return 'rarity-r';
+      if (r === 'L') return 'rarity-l';
+      if (r === 'SP') return 'rarity-sp';
+      return 'rarity-default';
+    }
+
+    /**
+     * Holo toggle: 'auto' (rarity-based), 'on' (forced), 'off' (disabled)
+     */
+    let holoMode = 'auto';
+    const cardContainer = document.querySelector('.card-container');
+
+    function updateHoloState(data) {
+      isHoloEligible = checkHoloEligibility(data);
+      applyHoloMode();
+    }
+
+    function applyHoloMode() {
+      let showHolo;
+      if (holoMode === 'on') showHolo = true;
+      else if (holoMode === 'off') showHolo = false;
+      else showHolo = isHoloEligible; // auto
+
+      cardContainer.classList.toggle('holo-eligible', showHolo);
+    }
+
+    holoBtn.addEventListener('click', () => {
+      if (holoMode === 'auto') { holoMode = 'on'; holoBtn.textContent = 'Holo: On'; }
+      else if (holoMode === 'on') { holoMode = 'off'; holoBtn.textContent = 'Holo: Off'; }
+      else { holoMode = 'auto'; holoBtn.textContent = 'Holo: Auto'; }
+      applyHoloMode();
+    });
+
+    /**
+     * Display card info text and rarity badge below the card.
+     */
+    function showCardInfo(data, cardId) {
+      if (data) {
+        cardName.textContent = data.card_name || cardId;
+        const parts = [];
+        if (data.card_set_id) parts.push(`<span>${data.card_set_id}</span>`);
+        if (data.set_name) parts.push(`<span>${data.set_name}</span>`);
+        if (data.card_type) parts.push(`<span>${data.card_type}</span>`);
+        cardMeta.innerHTML = parts.join('');
+
+        // Rarity badge (separate line, centered)
+        const badgeEl = document.getElementById('rarityBadge');
+        if (data.rarity) {
+          badgeEl.className = `rarity-badge ${getRarityClass(data.rarity)}`;
+          badgeEl.textContent = data.rarity;
+          badgeEl.style.display = '';
+        } else {
+          badgeEl.style.display = 'none';
+        }
+      } else {
+        cardName.textContent = cardId;
+        cardMeta.innerHTML = '<span>Card data unavailable</span>';
+        document.getElementById('rarityBadge').style.display = 'none';
+      }
+
+      updateHoloState(data);
+    }
+
+    /**
+     * Show/hide loading and error states.
+     */
+    function showLoader() {
+      cardLoader.classList.remove('hidden');
+      cardError.classList.remove('visible');
+    }
+
+    function hideLoader() {
+      cardLoader.classList.add('hidden');
+    }
+
+    function showError(message) {
+      hideLoader();
+      errorText.textContent = message;
+      cardError.classList.add('visible');
+    }
+
+    /* =============================================
+       CARD VARIANT BROWSING
+       ============================================= */
+    let currentCardId = null;
+    let variants = [];       // all variant objects for current card
+    let variantIndex = 0;    // currently displayed variant
+    /**
+     * Update variant dot indicator and info display.
+     */
+    function updateVariantUI() {
+      const hasMultiple = variants.length > 1;
+      // Variant info (dots/label) — arrows are now controlled by set browsing
+      variantInfo.classList.toggle('visible', hasMultiple);
+
+      if (hasMultiple) {
+        const label = getVariantLabel(variants[variantIndex], variantIndex);
+        variantLabel.textContent = label;
+        variantDots.innerHTML = variants.map((_, i) =>
+          `<span class="variant-dot ${i === variantIndex ? 'active' : ''}"></span>`
+        ).join('');
+      }
+
+      // Update variant hint icon
+      updateVariantHint();
+    }
+
+    /**
+     * Main function: load and display a card by ID (direct fetch fallback).
+     * Fetches all variants and shows the first one.
+     */
+    async function loadCard(cardId) {
+      // If flipped, flip back to front first
+      if (isFlipped) {
+        toggleFlip();
+      }
+
+      // Hide holo + fade out current card before loading new one
+      cardContainer.classList.remove('holo-eligible');
+      if (currentCardId) {
+        cardImage.classList.remove('loaded');
+        await new Promise(r => setTimeout(r, 200));
+      }
+
+      showLoader();
+
+      // Fetch all variants from API
+      const allVariants = await fetchCardVariants(cardId);
+
+      if (allVariants) {
+        variants = allVariants;
+      } else {
+        // API failed — create a minimal single-variant fallback
+        variants = [{ card_set_id: cardId, card_image: getImageUrl(cardId) }];
+      }
+
+      // Update variantMap so tray works for directly loaded cards
+      variantMap[cardId] = variants;
+
+      variantIndex = 0;
+      const data = variants[0];
+      const imageUrl = (data && data.card_image) ? data.card_image : getImageUrl(cardId);
+
+      try {
+        await loadImage(imageUrl);
+        hideLoader();
+        showCardInfo(data, cardId);
+        currentCardId = cardId;
+        updateVariantUI();
+      } catch {
+        showError(`Could not load card "${cardId}". Check the ID and try again.`);
+        if (!currentCardId) {
+          cardName.textContent = '';
+          cardMeta.innerHTML = '';
+        }
+        variants = [];
+        updateVariantUI();
+      }
+    }
+
+    /* --- Set browsing: arrow navigation --- */
+    let isBrowsing = false; // debounce rapid clicks
+
+    async function browseSet(direction) {
+      if (isBrowsing || setCardList.length < 2) return;
+      if (variantTrayOpen) closeVariantTray();
+      isBrowsing = true;
+      const next = (setIndex + direction + setCardList.length) % setCardList.length;
+      await showSetCard(next);
+      preloadWindow(next);
+      isBrowsing = false;
+    }
+
+    variantPrev.addEventListener('click', (e) => {
+      e.stopPropagation();
+      browseSet(-1);
+    });
+
+    variantNext.addEventListener('click', (e) => {
+      e.stopPropagation();
+      browseSet(1);
+    });
+
+    /* --- Set browsing: swipe detection for mobile --- */
+    let swipeStartX = 0;
+    let swipeStartY = 0;
+    let isSwiping = false;
+
+    cardPerspective.addEventListener('touchstart', (e) => {
+      if (setCardList.length < 2) return;
+      const touch = e.touches[0];
+      swipeStartX = touch.clientX;
+      swipeStartY = touch.clientY;
+      isSwiping = true;
+    }, { passive: true });
+
+    cardPerspective.addEventListener('touchend', (e) => {
+      if (!isSwiping || setCardList.length < 2) return;
+      isSwiping = false;
+      const touch = e.changedTouches[0];
+      const dx = touch.clientX - swipeStartX;
+      const dy = touch.clientY - swipeStartY;
+
+      // Horizontal swipe threshold: >50px horizontal, <30px vertical
+      if (Math.abs(dx) > 50 && Math.abs(dy) < 30) {
+        browseSet(dx < 0 ? 1 : -1);
+      }
+    }, { passive: true });
+
+    /* --- Sliding window image preload (2 behind, current, 2 ahead) --- */
+    const PRELOAD_WINDOW = 2;
+    const preloadCache = new Map(); // url → Image object
+
+    function preloadWindow(centerIndex) {
+      for (let offset = -PRELOAD_WINDOW; offset <= PRELOAD_WINDOW; offset++) {
+        const idx = (centerIndex + offset + setCardList.length) % setCardList.length;
+        const card = setCardList[idx];
+        if (!card) continue;
+        const url = card.card_image || getImageUrl(card.card_set_id);
+        if (!preloadCache.has(url)) {
+          const img = new Image();
+          img.src = url;
+          preloadCache.set(url, img);
+        }
+      }
+    }
+
+    function clearPreloadCache() {
+      preloadCache.clear();
+    }
+
+    /**
+     * Update arrow visibility based on set data (always show when set has cards).
+     */
+    function updateSetArrows() {
+      const hasSet = setCardList.length > 1;
+      variantPrev.classList.toggle('visible', hasSet);
+      variantNext.classList.toggle('visible', hasSet);
+    }
+
+    /* =============================================
+       CARD ID INPUT & LOADING
+       ============================================= */
+    const CARD_ID_PATTERN = /^(OP|ST)\d{2}-\d{3}$/i;
+
+    function handleLoadCard() {
+      const raw = cardIdInput.value.trim().toUpperCase();
+      if (!raw) return;
+
+      if (!CARD_ID_PATTERN.test(raw)) {
+        showError(`Invalid card ID "${raw}". Use format like OP01-001 or ST01-001.`);
+        return;
+      }
+
+      // Try to find the card in the current set first
+      const idx = setCardList.findIndex(c => c.card_set_id === raw);
+      if (idx !== -1) {
+        showSetCard(idx);
+      } else {
+        // Not in current set — direct fetch
+        loadCard(raw);
+      }
+    }
+
+    loadBtn.addEventListener('click', handleLoadCard);
+    cardIdInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleLoadCard();
+    });
+
+    /* =============================================
+       CARD FLIP
+       ============================================= */
+    let isFlipped = false;
+    let currentFlipY = 0;   // smoothed flip rotation (0 or 180)
+    let targetFlipY = 0;
+    const FLIP_LERP = 0.08; // slower lerp for a smooth 0.6s-ish flip
+
+    function toggleFlip() {
+      isFlipped = !isFlipped;
+      targetFlipY = isFlipped ? 180 : 0;
+      startTiltLoop();
+    }
+
+    // Flip button always works directly
+    flipBtn.addEventListener('click', () => toggleFlip());
+
+    /* =============================================
+       LONG PRESS → VARIANT TRAY (replaces click-to-flip on card)
+       ============================================= */
+    const LONG_PRESS_MS = 500;
+    const LONG_PRESS_MOVE_THRESHOLD = 10; // px — cancel if finger moves more
+    let longPressTimer = null;
+    let longPressTriggered = false;
+    let pressStartX = 0;
+    let pressStartY = 0;
+    let variantTrayOpen = false;
+    let longPressHintShown = false;
+
+    function startLongPress(x, y) {
+      pressStartX = x;
+      pressStartY = y;
+      longPressTriggered = false;
+      longPressTimer = setTimeout(() => {
+        longPressTriggered = true;
+        openVariantTray();
+      }, LONG_PRESS_MS);
+    }
+
+    function cancelLongPress() {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    }
+
+    function checkLongPressMove(x, y) {
+      const dx = Math.abs(x - pressStartX);
+      const dy = Math.abs(y - pressStartY);
+      if (dx > LONG_PRESS_MOVE_THRESHOLD || dy > LONG_PRESS_MOVE_THRESHOLD) {
+        cancelLongPress();
+      }
+    }
+
+    // Mouse: mousedown starts timer, mouseup fires flip if not long-pressed
+    cardFrame.addEventListener('mousedown', (e) => {
+      if (variantTrayOpen) return;
+      startLongPress(e.clientX, e.clientY);
+    });
+
+    cardFrame.addEventListener('mousemove', (e) => {
+      if (longPressTimer) checkLongPressMove(e.clientX, e.clientY);
+    });
+
+    cardFrame.addEventListener('mouseup', () => {
+      cancelLongPress();
+      if (!longPressTriggered && !variantTrayOpen) {
+        toggleFlip();
+      }
+      longPressTriggered = false;
+    });
+
+    cardFrame.addEventListener('mouseleave', () => {
+      cancelLongPress();
+    });
+
+    // Touch: touchstart starts timer, touchend fires flip if not long-pressed
+    cardFrame.addEventListener('touchstart', (e) => {
+      if (variantTrayOpen) return;
+      const t = e.touches[0];
+      startLongPress(t.clientX, t.clientY);
+    }, { passive: true });
+
+    cardFrame.addEventListener('touchmove', (e) => {
+      if (longPressTimer) {
+        const t = e.touches[0];
+        checkLongPressMove(t.clientX, t.clientY);
+      }
+    }, { passive: true });
+
+    cardFrame.addEventListener('touchend', (e) => {
+      cancelLongPress();
+      if (!longPressTriggered && !variantTrayOpen) {
+        toggleFlip();
+      }
+      longPressTriggered = false;
+    }, { passive: true });
+
+    /* --- Variant Tray: open / close / select --- */
+
+    function openVariantTray() {
+      if (isDemoActive) stopDemo();
+      variantTrayOpen = true;
+
+      // Populate tray with thumbnails
+      const cardId = currentCardId;
+      const cardVariants = variantMap[cardId] || variants;
+
+      if (cardVariants.length <= 1) {
+        variantTrayTitle.textContent = 'No alternate versions';
+        variantTrayItems.innerHTML = '<div class="variant-tray-empty">This card has no alternate art versions.</div>';
+      } else {
+        variantTrayTitle.textContent = `${cardVariants.length} Versions`;
+        variantTrayItems.innerHTML = cardVariants.map((v, i) => {
+          const imgUrl = v.card_image || getImageUrl(v.card_image_id || cardId);
+          const label = getVariantLabel(v, i);
+          const active = i === variantIndex ? 'active' : '';
+          return `<div class="variant-tray-item ${active}" data-variant-index="${i}">
+            <img src="${imgUrl}" alt="${label}" loading="lazy">
+            <div class="variant-tray-item-label">${label}</div>
+          </div>`;
+        }).join('');
+      }
+
+      // Animate open
+      variantTrayBackdrop.classList.add('open');
+      // Force reflow then animate
+      variantTrayBackdrop.offsetHeight;
+
+      // Dismiss hint after first use
+      if (!longPressHintShown) {
+        longPressHintShown = true;
+        longPressHint.classList.remove('visible');
+      }
+    }
+
+    function closeVariantTray() {
+      variantTrayOpen = false;
+      variantTrayBackdrop.classList.remove('open');
+    }
+
+    async function selectVariant(index) {
+      if (index === variantIndex) {
+        closeVariantTray();
+        return;
+      }
+
+      const cardVariants = variantMap[currentCardId] || variants;
+      const data = cardVariants[index];
+      if (!data) return;
+
+      // Update variant state
+      variantIndex = index;
+      variants = cardVariants;
+
+      // Crossfade to new variant
+      cardContainer.classList.remove('holo-eligible');
+      cardImage.classList.remove('loaded');
+
+      closeVariantTray();
+      await new Promise(r => setTimeout(r, 150));
+
+      const imageUrl = data.card_image || getImageUrl(data.card_image_id || currentCardId);
+      try {
+        await loadImage(imageUrl);
+        showCardInfo(data, currentCardId);
+        updateVariantUI();
+      } catch {
+        cardImage.classList.add('loaded');
+      }
+    }
+
+    // Click on thumbnail to select
+    variantTrayItems.addEventListener('click', (e) => {
+      const item = e.target.closest('.variant-tray-item');
+      if (item) {
+        const idx = parseInt(item.dataset.variantIndex, 10);
+        selectVariant(idx);
+      }
+    });
+
+    // Close tray: click backdrop or close button
+    variantTrayBackdrop.addEventListener('click', (e) => {
+      if (e.target === variantTrayBackdrop) closeVariantTray();
+    });
+    variantTrayClose.addEventListener('click', closeVariantTray);
+
+    /**
+     * Update variant hint icon visibility (shown when >1 variant exists).
+     */
+    function updateVariantHint() {
+      const cardVariants = variantMap[currentCardId] || variants;
+      variantHint.classList.toggle('visible', cardVariants.length > 1);
+
+      // Show long-press hint on first load if card has variants
+      if (!longPressHintShown && cardVariants.length > 1) {
+        longPressHint.classList.add('visible');
+        setTimeout(() => {
+          if (!longPressHintShown) {
+            longPressHintShown = true;
+            longPressHint.classList.remove('visible');
+          }
+        }, 5000);
+      }
+    }
+
+    /* =============================================
+       MOUSE TILT (DESKTOP) — rAF + LERP
+       ============================================= */
+    const TILT_MAX = 18;     // max degrees
+    const LERP_FACTOR = 0.12; // smoothing (0 = no move, 1 = instant)
+
+    // Target values (where mouse is) and current smoothed values
+    let targetRotX = 0, targetRotY = 0;
+    let currentRotX = 0, currentRotY = 0;
+    let isTilting = false;
+    let tiltRafId = null;
+
+    /* =============================================
+       TILT ENGINE — Transform, Shadow & Holo Shift
+       ============================================= */
+    const HOLO_SHIFT = 3; // multiplier: how far gradient shifts per degree of tilt
+    function applyTilt(rotX, rotY) {
+      const totalRotY = rotY + currentFlipY;
+      cardFrame.style.transform = `rotateX(${rotX.toFixed(2)}deg) rotateY(${totalRotY.toFixed(2)}deg)`;
+
+      const shadowX = -rotY * 0.8;
+      const shadowY = rotX * 0.8;
+      const shadowBlur = 24 + (Math.abs(rotX) + Math.abs(rotY)) * 0.5;
+      cardFrame.style.boxShadow =
+        `0 0 20px var(--card-glow-color), ${shadowX.toFixed(1)}px ${shadowY.toFixed(1)}px ${shadowBlur.toFixed(0)}px rgba(0, 0, 0, 0.5)`;
+
+      // Holo: rainbow gradient shifts + radial light spot follows tilt
+      const holoX = 50 + rotY * HOLO_SHIFT;
+      const holoY = 50 - rotX * HOLO_SHIFT;
+      const spotX = 50 + rotY * 2.5;
+      const spotY = 50 - rotX * 2.5;
+      const holoAngle = 115 + Math.atan2(rotX, rotY) * (180 / Math.PI);
+
+      holoOverlay.style.background = `
+        radial-gradient(circle at ${spotX.toFixed(1)}% ${spotY.toFixed(1)}%, rgba(255,255,255,0.35) 0%, transparent 60%),
+        linear-gradient(${holoAngle.toFixed(0)}deg, #ff000088, #ff880088, #ffff0088, #00ff0088, #0088ff88, #8800ff88, #ff000088)
+      `;
+      holoOverlay.style.backgroundSize = '100% 100%, var(--holo-size)';
+      holoOverlay.style.backgroundPosition = `center, ${holoX.toFixed(1)}% ${holoY.toFixed(1)}%`;
+
+      // Shift texture at half rate for parallax depth
+      const texX = 50 + rotY * HOLO_SHIFT * 0.5;
+      const texY = 50 - rotX * HOLO_SHIFT * 0.5;
+      holoTexture.style.backgroundPosition = `${texX.toFixed(1)}% ${texY.toFixed(1)}%`;
+    }
+
+    /**
+     * Fade holo overlays during flip animation.
+     * Smoothly fades out as flip angle approaches 90°, stays hidden past 90°.
+     * Removes inline opacity when card is at rest so CSS class controls visibility.
+     */
+    const holoBaseOpacity = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--holo-opacity')) || 0.22;
+    const holoTexBaseOpacity = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--holo-texture-opacity')) || 0.5;
+
+    function updateHoloFlipFade() {
+      const rawAngle = Math.abs(currentFlipY % 360);
+      const angle = rawAngle > 180 ? 360 - rawAngle : rawAngle;
+
+      if (angle < 3) {
+        // At rest (front facing) — let CSS class control opacity
+        holoOverlay.style.removeProperty('opacity');
+        holoTexture.style.removeProperty('opacity');
+      } else if (angle > 85) {
+        // Past ~90° — fully hidden
+        holoOverlay.style.opacity = '0';
+        holoTexture.style.opacity = '0';
+      } else {
+        // Mid-flip: fade from full at 0° to 0 at 85°
+        if (cardContainer.classList.contains('holo-eligible')) {
+          const fade = 1 - (angle / 85);
+          holoOverlay.style.opacity = (fade * holoBaseOpacity).toFixed(3);
+          holoTexture.style.opacity = (fade * holoTexBaseOpacity).toFixed(3);
+        }
+      }
+    }
+
+    /**
+     * Animation loop: lerp tilt + flip values toward targets.
+     * Also fades holo overlays during flip animation.
+     */
+    function tiltLoop() {
+      currentRotX += (targetRotX - currentRotX) * LERP_FACTOR;
+      currentRotY += (targetRotY - currentRotY) * LERP_FACTOR;
+      currentFlipY += (targetFlipY - currentFlipY) * FLIP_LERP;
+
+      applyTilt(currentRotX, currentRotY);
+
+      // Fade holo smoothly during flip (fade out approaching 90°, hidden past 90°)
+      updateHoloFlipFade();
+
+      // Stop the loop once everything is close enough to target
+      const tiltDist = Math.abs(targetRotX - currentRotX) + Math.abs(targetRotY - currentRotY);
+      const flipDist = Math.abs(targetFlipY - currentFlipY);
+      if (isTilting || tiltDist > 0.05 || flipDist > 0.1) {
+        tiltRafId = requestAnimationFrame(tiltLoop);
+      } else {
+        // Snap to exact values when done
+        currentRotX = targetRotX;
+        currentRotY = targetRotY;
+        currentFlipY = targetFlipY;
+        applyTilt(currentRotX, currentRotY);
+        updateHoloFlipFade();
+        tiltRafId = null;
+      }
+    }
+
+    /**
+     * Start the tilt animation loop if not already running.
+     */
+    function startTiltLoop() {
+      if (!tiltRafId) {
+        tiltRafId = requestAnimationFrame(tiltLoop);
+      }
+    }
+
+    // Mouse move: update target, let the loop smoothly catch up
+    cardPerspective.addEventListener('mousemove', (e) => {
+      if (isDemoActive) stopDemo();
+
+      const rect = cardFrame.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+      const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+
+      targetRotY = x * TILT_MAX;
+      targetRotX = -y * TILT_MAX;
+
+      if (!isTilting) {
+        isTilting = true;
+      }
+      startTiltLoop();
+    });
+
+    // Mouse leave: smoothly animate back to flat via lerp
+    cardPerspective.addEventListener('mouseleave', () => {
+      isTilting = false;
+      targetRotX = 0;
+      targetRotY = 0;
+      startTiltLoop();
+    });
+
+    /* =============================================
+       AUTO DEMO MODE
+       ============================================= */
+    let isDemoActive = false;
+    let demoStartTime = 0;
+    let demoRafId = null;
+    const DEMO_CYCLE = 4500; // ms per full figure-8 cycle
+
+    function demoLoop(timestamp) {
+      if (!isDemoActive) return;
+
+      const elapsed = timestamp - demoStartTime;
+      const t = (elapsed % DEMO_CYCLE) / DEMO_CYCLE; // 0..1
+      const angle = t * Math.PI * 2;
+
+      // Figure-8 path: sin for X, sin(2x) for Y
+      targetRotX = Math.sin(angle) * TILT_MAX * 0.8;
+      targetRotY = Math.sin(angle * 2) * TILT_MAX * 0.6;
+
+      demoRafId = requestAnimationFrame(demoLoop);
+    }
+
+    function startDemo() {
+      isDemoActive = true;
+      demoStartTime = performance.now();
+      demoBtn.textContent = 'Stop Demo';
+      demoBtn.classList.add('active');
+      demoRafId = requestAnimationFrame(demoLoop);
+      startTiltLoop();
+    }
+
+    function stopDemo() {
+      isDemoActive = false;
+      demoBtn.textContent = 'Auto Demo';
+      demoBtn.classList.remove('active');
+      if (demoRafId) {
+        cancelAnimationFrame(demoRafId);
+        demoRafId = null;
+      }
+      // Let tilt lerp back to zero
+      targetRotX = 0;
+      targetRotY = 0;
+      startTiltLoop();
+    }
+
+    demoBtn.addEventListener('click', () => {
+      isDemoActive ? stopDemo() : startDemo();
+    });
+
+    // Stop demo on card tap
+    cardFrame.addEventListener('click', () => {
+      if (isDemoActive) stopDemo();
+    });
+
+    /* =============================================
+       MOBILE GYROSCOPE TILT
+       ============================================= */
+    let gyroAvailable = false;
+    let gyroRafId = null;
+
+    /**
+     * Smooth gyro values via lerp and feed into tilt targets.
+     */
+    function gyroLoop() {
+      if (!gyroAvailable) return;
+
+      currentRotX += (targetRotX - currentRotX) * LERP_FACTOR;
+      currentRotY += (targetRotY - currentRotY) * LERP_FACTOR;
+      applyTilt(currentRotX, currentRotY);
+
+      gyroRafId = requestAnimationFrame(gyroLoop);
+    }
+
+    function handleOrientation(e) {
+      if (isDemoActive) return;
+
+      // beta = front-back tilt (-180..180), gamma = left-right tilt (-90..90)
+      let beta = e.beta || 0;
+      let gamma = e.gamma || 0;
+
+      // Offset so holding phone at ~45° is "neutral"
+      beta -= 45;
+
+      // Clamp to tilt range
+      const clamp = (v, max) => Math.max(-max, Math.min(max, v));
+      targetRotX = -clamp(beta, TILT_MAX);
+      targetRotY = clamp(gamma, TILT_MAX);
+
+      if (!gyroRafId) {
+        gyroRafId = requestAnimationFrame(gyroLoop);
+      }
+      startTiltLoop();
+    }
+
+    /**
+     * Show fallback arrow buttons when gyro is not available.
+     */
+    function showFallbackArrows() {
+      document.getElementById('fallbackArrows').classList.add('visible');
+      document.getElementById('arrowSep').style.display = '';
+
+      document.querySelectorAll('.arrow-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (isDemoActive) stopDemo();
+          targetRotX = Number(btn.dataset.rx);
+          targetRotY = Number(btn.dataset.ry);
+          startTiltLoop();
+        });
+      });
+    }
+
+    /**
+     * Request gyroscope permission (needed on iOS 13+) and start listening.
+     */
+    async function initGyroscope() {
+      // Only attempt on devices that might have a gyroscope (touch support)
+      if (!('ontouchstart' in window)) return;
+
+      // iOS 13+ requires explicit permission request
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const permission = await DeviceOrientationEvent.requestPermission();
+          if (permission === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation);
+            gyroAvailable = true;
+          } else {
+            showFallbackArrows();
+          }
+        } catch {
+          showFallbackArrows();
+        }
+      } else if ('DeviceOrientationEvent' in window) {
+        // Android and older iOS — just listen, test if we get data
+        let gotData = false;
+        const testHandler = (e) => {
+          if (e.beta !== null || e.gamma !== null) {
+            gotData = true;
+            gyroAvailable = true;
+            window.removeEventListener('deviceorientation', testHandler);
+            window.addEventListener('deviceorientation', handleOrientation);
+          }
+        };
+        window.addEventListener('deviceorientation', testHandler);
+
+        // If no data after 1s, show fallback
+        setTimeout(() => {
+          if (!gotData) {
+            window.removeEventListener('deviceorientation', testHandler);
+            showFallbackArrows();
+          }
+        }, 1000);
+      } else {
+        showFallbackArrows();
+      }
+    }
+
+    // iOS requires permission request from a user gesture
+    // We'll trigger it from the first touch on the card
+    let gyroInitialized = false;
+    cardPerspective.addEventListener('touchstart', () => {
+      if (!gyroInitialized) {
+        gyroInitialized = true;
+        initGyroscope();
+      }
+    }, { once: true });
+
+    /* =============================================
+       INIT
+       ============================================= */
+    // Load the default set (OP-01) on page load
+    fetchSetData(setSelector.value);
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,2286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>OPTCG Pack Opener — Experiment 3</title>
+  <style>
+    /* =============================================
+       CSS CUSTOM PROPERTIES
+       ============================================= */
+    :root {
+      --bg-dark: #0a0a0a;
+      --bg-gradient: #1a1a2e;
+      --text-primary: #e0e0e0;
+      --text-secondary: #888;
+      --card-width-mobile: 280px;
+      --card-width-desktop: 320px;
+      --card-aspect: 5 / 7;
+      --card-border-radius: 6px;
+      --card-glow-color: rgba(100, 140, 255, 0.3);
+      --transition-speed: 0.3s;
+      --tilt-perspective: 900px;
+      --shadow-base: 0 4px 24px rgba(0, 0, 0, 0.6);
+      /* Holo shimmer tunables */
+      --holo-opacity: 0.22;
+      --holo-blend: color-dodge;
+      --holo-size: 250% 250%;
+      --holo-texture-opacity: 0.5;
+      --holo-texture-spacing: 4px;
+      /* Pack-specific tunables */
+      --pack-width: 220px;
+      --pack-aspect: 3 / 4;
+      --accent-color: rgba(100, 140, 255, 0.6);
+      --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    /* =============================================
+       RESET & BASE
+       ============================================= */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-gradient) 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      -webkit-user-select: none;
+      user-select: none;
+      overflow-x: hidden;
+    }
+
+    /* =============================================
+       HEADER
+       ============================================= */
+    .header {
+      text-align: center;
+      padding: 1.5rem 1rem 1rem;
+    }
+
+    .header-title {
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      opacity: 0.6;
+    }
+
+    /* =============================================
+       SET SELECTOR
+       ============================================= */
+    .set-selector-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .set-selector-area.hidden {
+      opacity: 0;
+      transform: translateY(-10px);
+      pointer-events: none;
+    }
+
+    .set-selector {
+      height: 48px;
+      padding: 0 2rem 0 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+      font-family: var(--font-family);
+      font-size: 0.9rem;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.15s ease;
+      max-width: 300px;
+      width: 100%;
+      -webkit-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23888' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+    }
+
+    .set-selector:focus {
+      border-color: var(--accent-color);
+    }
+
+    .set-selector option {
+      background: #1a1a2e;
+      color: var(--text-primary);
+    }
+
+    /* =============================================
+       OPEN PACK BUTTON
+       ============================================= */
+    .open-pack-btn {
+      height: 56px;
+      padding: 0 2.5rem;
+      border: 2px solid var(--accent-color);
+      border-radius: 14px;
+      background: rgba(100, 140, 255, 0.15);
+      color: var(--text-primary);
+      font-family: var(--font-family);
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.1s ease;
+    }
+
+    .open-pack-btn:hover:not(:disabled) {
+      background: rgba(100, 140, 255, 0.25);
+      border-color: rgba(100, 140, 255, 0.8);
+    }
+
+    .open-pack-btn:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+
+    .open-pack-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    /* =============================================
+       PACK CONTENT AREA
+       ============================================= */
+    .pack-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 1rem 1rem;
+      min-height: 300px;
+      width: 100%;
+      max-width: 600px;
+    }
+
+    /* =============================================
+       LOADING / STATUS
+       ============================================= */
+    .status-text {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      text-align: center;
+      min-height: 1.5rem;
+    }
+
+    .loader-spinner {
+      width: 28px;
+      height: 28px;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-top-color: var(--accent-color);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* =============================================
+       BOOSTER PACK VISUAL & TEAR-FROM-TOP ANIMATION
+       ============================================= */
+    :root {
+      --tear-line-y: 15%;
+      --tear-anim-duration: 0.8s;
+      --tear-flap-travel: -45%;
+      --tear-bottom-travel: 40%;
+      --pack-primary: #c41e2a;
+      --pack-secondary: #8b0000;
+      --pack-tilt-max: 15;
+    }
+
+    /* Perspective wrapper for 3D tilt */
+    .pack-perspective {
+      perspective: 800px;
+      margin-bottom: 0.75rem;
+      border: none;
+      outline: none;
+      box-shadow: none;
+    }
+
+    .pack-container {
+      position: relative;
+      width: 200px;
+      aspect-ratio: 3 / 5;
+      cursor: pointer;
+      transition: transform 0.15s ease-out;
+      background: transparent;
+      border: none;
+      outline: none;
+      box-shadow: none;
+    }
+
+    @media (min-width: 768px) {
+      .pack-container {
+        width: 240px;
+      }
+    }
+
+
+    /* Radial foil shine — soft circular glow following cursor like light on glossy plastic */
+    .pack-shine {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+      background: radial-gradient(
+        circle at var(--shine-x, 50%) var(--shine-y, 50%),
+        rgba(255, 255, 255, 0.20) 0%,
+        rgba(255, 255, 255, 0.05) 40%,
+        transparent 70%
+      );
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    /* Fine micro-line texture over the shine — foil packaging sheen */
+    .pack-shine::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        135deg,
+        transparent 0px,
+        transparent 2px,
+        rgba(255, 255, 255, 0.04) 2px,
+        rgba(255, 255, 255, 0.04) 3px
+      );
+      pointer-events: none;
+    }
+
+    .pack-container:hover .pack-shine,
+    .pack-container.touch-active .pack-shine {
+      opacity: 1;
+    }
+
+    /* Shared layer styles */
+    .pack-top,
+    .pack-bottom,
+    .pack-inner {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    .pack-top,
+    .pack-bottom {
+      will-change: transform, opacity;
+      background: transparent;
+      border: none;
+      outline: none;
+      box-shadow: none;
+    }
+
+    /* Pack image — oversized to crop past the product shot's built-in padding */
+    .pack-top img,
+    .pack-bottom img {
+      position: absolute;
+      width: 120%;
+      height: 120%;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      object-fit: cover;
+      display: block;
+    }
+
+    /* Layer 3: top flap — clean cut across the top ~15% */
+    .pack-top {
+      z-index: 3;
+      clip-path: polygon(
+        0% 0%, 100% 0%, 100% 15%,
+        85% 15.3%, 65% 14.9%, 50% 15.2%,
+        35% 14.8%, 15% 15.5%, 0% 15%
+      );
+    }
+
+    /* Layer 2: bottom wrap — below the clean cut */
+    .pack-bottom {
+      z-index: 2;
+      clip-path: polygon(
+        0% 15%, 15% 15.5%, 35% 14.8%, 50% 15.2%,
+        65% 14.9%, 85% 15.3%, 100% 15%,
+        100% 100%, 0% 100%
+      );
+    }
+
+    /* Layer 1: card stack revealed inside — hidden until tear */
+    .pack-inner {
+      z-index: 1;
+      opacity: 0;
+      transform: scale(0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      visibility: hidden;
+      background: transparent;
+    }
+
+    /* Make visible only when tearing starts */
+    .pack-container.tearing .pack-inner {
+      visibility: visible;
+    }
+
+    .pack-inner-stack {
+      position: relative;
+      width: 90%;
+      aspect-ratio: 5 / 7;
+    }
+
+    .pack-inner-card {
+      position: absolute;
+      inset: 0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    /* CSS fallback pack design (shown when images fail) */
+    .pack-fallback {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+      text-align: center;
+      padding: 1.5rem;
+      background: linear-gradient(160deg, var(--pack-primary), var(--pack-secondary));
+    }
+
+    .pack-fallback.active {
+      display: flex;
+    }
+
+    /* Foil shine on CSS fallback */
+    .pack-fallback::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        110deg,
+        transparent 20%,
+        rgba(255,255,255,0.06) 40%,
+        rgba(255,255,255,0.14) 50%,
+        rgba(255,255,255,0.06) 60%,
+        transparent 80%
+      );
+      animation: foilShine 3s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    @keyframes foilShine {
+      0%, 100% { transform: translateX(-30%); }
+      50% { transform: translateX(30%); }
+    }
+
+    .pack-fallback-brand {
+      font-size: 0.55rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #d4a84c;
+      z-index: 1;
+    }
+
+    .pack-fallback-name {
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: #fff;
+      z-index: 1;
+    }
+
+    .pack-fallback-sub {
+      font-size: 0.55rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.45);
+      z-index: 1;
+    }
+
+    /* Tap to open prompt */
+    .pack-prompt {
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.4);
+      animation: packPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes packPulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 0.8; }
+    }
+
+    /* Touch feedback */
+    .pack-container:active:not(.tearing) {
+      opacity: 0.9;
+    }
+
+    /* === Cut sweep line — sweeps left to right before tear === */
+    .pack-cut-line {
+      position: absolute;
+      top: calc(var(--tear-line-y) - 1px);
+      left: 0;
+      width: 100%;
+      height: 3px;
+      z-index: 5;
+      pointer-events: none;
+      overflow: hidden;
+      opacity: 0;
+    }
+
+    .pack-cut-line::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.15) 20%,
+        rgba(255, 255, 255, 0.8) 50%,
+        rgba(255, 255, 255, 0.15) 80%,
+        transparent 100%
+      );
+    }
+
+    /* Activate cut sweep on tearing */
+    .pack-container.tearing .pack-cut-line {
+      opacity: 1;
+    }
+
+    .pack-container.tearing .pack-cut-line::before {
+      animation: cutSweep 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    @keyframes cutSweep {
+      0%   { left: -100%; }
+      100% { left: 100%; }
+    }
+
+    /* === Tear animations === */
+    /* Flatten tilt before tearing and disable shine */
+    .pack-container.tearing {
+      transform: rotateX(0) rotateY(0) !important;
+      animation: packSnap 0.15s ease-out;
+    }
+
+    .pack-container.tearing .pack-shine {
+      opacity: 0 !important;
+    }
+
+    @keyframes packSnap {
+      0% { transform: rotateX(0) rotateY(0) scale(1); }
+      50% { transform: rotateX(0) rotateY(0) scale(1.03); }
+      100% { transform: rotateX(0) rotateY(0) scale(1); }
+    }
+
+    /* Flap and bottom separation start AFTER the 0.8s cut sweep */
+    .pack-container.tearing .pack-top {
+      animation: tearFlap 0.6s ease-out forwards;
+      animation-delay: 0.8s;
+    }
+
+    .pack-container.tearing .pack-bottom {
+      animation: tearWrapperSlide 1s ease-in-out forwards;
+      animation-delay: 0.8s;
+    }
+
+    .pack-container.tearing .pack-inner {
+      visibility: visible;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    @keyframes tearWrapperSlide {
+      0%   { transform: translateY(0); opacity: 1; }
+      75%  { transform: translateY(100%); opacity: 1; }
+      100% { transform: translateY(135%); opacity: 0; }
+    }
+
+    @keyframes tearFlap {
+      0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(var(--tear-flap-travel)) rotate(-5deg); opacity: 0; }
+    }
+
+    @keyframes tearBottom {
+      0%   { transform: translateY(0); opacity: 1; }
+      100% { transform: translateY(var(--tear-bottom-travel)); opacity: 0; }
+    }
+
+    @keyframes revealCards {
+      0%   { opacity: 0; transform: scale(0.95); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    .pack-prompt.hidden {
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    /* =============================================
+       CARD REVEAL
+       ============================================= */
+    .card-reveal-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      width: 100%;
+      padding-top: 0.5rem;
+    }
+
+    .card-counter {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      letter-spacing: 0.08em;
+    }
+
+    /* Card stack — all 12 cards pre-built, positioned via --i */
+    .card-stack {
+      position: relative;
+      width: 200px;
+      aspect-ratio: var(--card-aspect);
+      transform: scale(1);
+      transition: transform 0.5s ease-out;
+      transform-origin: center top;
+      will-change: transform;
+    }
+
+    .card-stack.revealed {
+      transform: scale(1.35);
+      /* scale grows visually but not in layout — add margin to push info down */
+      margin-bottom: calc(200px * 7 / 5 * 0.35 + 24px);
+    }
+
+    @media (min-width: 768px) {
+      .card-stack { width: 240px; }
+      .card-stack.revealed {
+        transform: scale(1.2);
+        margin-bottom: calc(240px * 7 / 5 * 0.2 + 24px);
+      }
+    }
+
+    /* Each card in the stack — positioned via --i custom property */
+    .stack-card {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      aspect-ratio: var(--card-aspect);
+      border-radius: var(--card-border-radius);
+      overflow: hidden;
+      transition: transform 0.35s ease-out, opacity 0.35s ease-out;
+      transform: translateY(calc(var(--i) * 2px));
+      z-index: calc(12 - var(--i));
+      will-change: transform, opacity;
+    }
+
+    .stack-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      border-radius: var(--card-border-radius);
+    }
+
+    .stack-card-fallback {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a2e;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      border-radius: var(--card-border-radius);
+    }
+
+    /* Hero card (current top) gets shadow + cursor */
+    .stack-card.hero {
+      box-shadow: 0 0 20px var(--card-glow-color), var(--shadow-base);
+      cursor: pointer;
+    }
+
+    /* Cards beyond top 5 are hidden */
+    .stack-card.stack-hidden {
+      opacity: 0;
+    }
+
+    /* === Rare Card Emphasis === */
+
+    /* Glow pulse on rare cards when they become hero */
+    .stack-card.hero.rare-glow-sr {
+      animation: glowPulseSR 0.8s ease-in-out;
+    }
+    .stack-card.hero.rare-glow-sec {
+      animation: glowPulseSEC 1.2s ease-in-out;
+    }
+    .stack-card.hero.rare-glow-last {
+      animation: glowPulseLast 1.5s ease-in-out;
+    }
+
+    @keyframes glowPulseSR {
+      0% { box-shadow: 0 0 20px var(--card-glow-color), var(--shadow-base); }
+      50% { box-shadow: 0 0 28px rgba(200, 200, 220, 0.35), 0 0 50px rgba(200, 200, 220, 0.12), var(--shadow-base); }
+      100% { box-shadow: 0 0 24px rgba(200, 200, 220, 0.25), 0 0 40px rgba(200, 200, 220, 0.08), var(--shadow-base); }
+    }
+
+    @keyframes glowPulseSEC {
+      0% { box-shadow: 0 0 20px var(--card-glow-color), var(--shadow-base); }
+      60% { box-shadow: 0 0 30px rgba(218, 165, 32, 0.35), 0 0 55px rgba(218, 165, 32, 0.12), var(--shadow-base); }
+      100% { box-shadow: 0 0 26px rgba(218, 165, 32, 0.28), 0 0 45px rgba(218, 165, 32, 0.08), var(--shadow-base); }
+    }
+
+    @keyframes glowPulseLast {
+      0% { box-shadow: 0 0 20px var(--card-glow-color), var(--shadow-base); }
+      50% { box-shadow: 0 0 35px rgba(218, 165, 32, 0.4), 0 0 65px rgba(218, 165, 32, 0.15), var(--shadow-base); }
+      100% { box-shadow: 0 0 30px rgba(218, 165, 32, 0.3), 0 0 50px rgba(218, 165, 32, 0.1), var(--shadow-base); }
+    }
+
+    /* Scale pulse on last card */
+    .stack-card.hero.rare-scale-pulse {
+      animation: rareScalePulse 0.5s ease-out;
+    }
+
+    @keyframes rareScalePulse {
+      0% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(0) scale(1.05); }
+      100% { transform: translateY(0) scale(1); }
+    }
+
+    /* More intense holo on SEC/SP */
+    .stack-card.holo-intense .holo-overlay {
+      opacity: 0.35;
+    }
+    .stack-card.holo-intense .holo-texture {
+      opacity: 0.7;
+    }
+
+    /* Sparkle particles */
+    .sparkle-container {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 15;
+      overflow: visible;
+    }
+
+    .sparkle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: white;
+      opacity: 0;
+      animation: sparkleFloat var(--duration, 0.8s) ease-out forwards;
+      animation-delay: var(--delay, 0s);
+    }
+
+    .sparkle.gold {
+      background: #f0d060;
+      box-shadow: 0 0 4px #f0d060;
+    }
+
+    .sparkle.silver {
+      background: #d0d8e0;
+      box-shadow: 0 0 4px #d0d8e0;
+    }
+
+    @keyframes sparkleFloat {
+      0% {
+        opacity: 1;
+        transform: translate(0, 0) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(var(--tx), var(--ty)) scale(0);
+      }
+    }
+
+    /* Departing card slides up and fades via CSS transition */
+    .stack-card.departing {
+      transform: translateY(-110%) scale(0.95) !important;
+      opacity: 0 !important;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    /* Holo rainbow overlay */
+    .holo-overlay {
+      position: absolute;
+      inset: 0;
+      border-radius: var(--card-border-radius);
+      background: linear-gradient(
+        115deg,
+        #ff000088, #ff880088, #ffff0088,
+        #00ff0088, #0088ff88, #8800ff88, #ff000088
+      );
+      background-size: var(--holo-size);
+      background-position: center;
+      mix-blend-mode: var(--holo-blend);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 2;
+      will-change: background, opacity;
+    }
+
+    .holo-eligible .holo-overlay {
+      opacity: var(--holo-opacity);
+    }
+
+    /* Holo line texture */
+    .holo-texture {
+      position: absolute;
+      inset: 0;
+      border-radius: var(--card-border-radius);
+      pointer-events: none;
+      z-index: 3;
+      opacity: 0;
+      will-change: background-position, opacity;
+      background:
+        repeating-linear-gradient(45deg, transparent, transparent var(--holo-texture-spacing), rgba(255,255,255,0.15) var(--holo-texture-spacing), rgba(255,255,255,0.15) calc(var(--holo-texture-spacing) + 1px)),
+        repeating-linear-gradient(-45deg, transparent, transparent var(--holo-texture-spacing), rgba(255,255,255,0.08) var(--holo-texture-spacing), rgba(255,255,255,0.08) calc(var(--holo-texture-spacing) + 1px));
+      background-size: 200% 200%;
+      background-position: center;
+      mix-blend-mode: overlay;
+    }
+
+    .holo-eligible .holo-texture {
+      opacity: var(--holo-texture-opacity);
+    }
+
+    /* Card info below — animates in */
+    .card-info {
+      text-align: center;
+      min-height: 3rem;
+    }
+
+    .card-info-name {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .card-info-id {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 0.2rem;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.3s ease 0.1s, transform 0.3s ease 0.1s;
+    }
+
+    .card-info-rarity {
+      display: inline-block;
+      margin-top: 0.35rem;
+      padding: 0.15rem 0.6rem;
+      border-radius: 10px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.3s ease 0.2s, transform 0.3s ease 0.2s;
+    }
+
+    .card-info.visible .card-info-name,
+    .card-info.visible .card-info-id,
+    .card-info.visible .card-info-rarity {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Rarity badge colors */
+    .rarity-c   { background: rgba(160,160,160,0.2); color: #aaa; }
+    .rarity-uc  { background: rgba(100,180,100,0.2); color: #7bc77b; }
+    .rarity-r   { background: rgba(80,140,255,0.2); color: #6eaaff; }
+    .rarity-l   { background: rgba(200,80,200,0.2); color: #d080d0; }
+    .rarity-sr  { background: rgba(200,200,200,0.25); color: #e0e0e0; }
+    .rarity-sec { background: rgba(218,165,32,0.25); color: #f0d060; }
+    .rarity-sp  { background: rgba(218,165,32,0.25); color: #f0d060; }
+
+    /* Next card button */
+    .next-card-btn {
+      height: 44px;
+      padding: 0 2rem;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+      font-family: var(--font-family);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease, opacity 0.3s ease, transform 0.3s ease;
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+    }
+
+    .next-card-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .next-card-btn.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    /* =============================================
+       PACK SUMMARY
+       ============================================= */
+    .summary-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.25rem;
+      width: 100%;
+      padding: 1rem;
+      max-width: 500px;
+    }
+
+    .summary-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: 0.05em;
+    }
+
+    .summary-stats {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      width: 100%;
+    }
+
+    @media (max-width: 400px) {
+      .summary-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    .summary-thumb {
+      position: relative;
+      aspect-ratio: var(--card-aspect);
+      border-radius: 4px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    .summary-thumb:hover {
+      transform: scale(1.05);
+    }
+
+    .summary-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .summary-thumb-fallback {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a2e;
+      color: var(--text-secondary);
+      font-size: 0.6rem;
+    }
+
+    /* Rare glow border on thumbnails */
+    .summary-thumb.rare-sr {
+      box-shadow: 0 0 8px rgba(200, 200, 220, 0.4), 0 2px 8px rgba(0,0,0,0.4);
+    }
+    .summary-thumb.rare-sec,
+    .summary-thumb.rare-sp {
+      box-shadow: 0 0 10px rgba(218, 165, 32, 0.5), 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    .summary-thumb-rarity {
+      position: absolute;
+      bottom: 3px;
+      right: 3px;
+      padding: 1px 5px;
+      border-radius: 6px;
+      font-size: 0.5rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      background: rgba(0,0,0,0.6);
+      color: #ddd;
+    }
+
+    /* Full card viewer overlay from summary */
+    .card-viewer-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      background: rgba(10, 10, 10, 0.92);
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .card-viewer-stage {
+      position: relative;
+      width: var(--card-width-mobile);
+      aspect-ratio: var(--card-aspect);
+    }
+
+    @media (min-width: 768px) {
+      .card-viewer-stage { width: var(--card-width-desktop); }
+    }
+
+    .card-viewer-card {
+      position: absolute;
+      inset: 0;
+      border-radius: var(--card-border-radius);
+      overflow: hidden;
+      box-shadow: 0 0 20px var(--card-glow-color), var(--shadow-base);
+      transition: transform 0.08s ease-out, box-shadow 0.08s ease-out;
+      transform-style: preserve-3d;
+    }
+
+    .card-viewer-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      border-radius: var(--card-border-radius);
+    }
+
+    .card-viewer-info {
+      text-align: center;
+    }
+
+    .card-viewer-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .card-viewer-meta {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.2rem;
+    }
+
+    .card-viewer-back-btn {
+      height: 40px;
+      padding: 0 1.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+      font-family: var(--font-family);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .card-viewer-back-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .summary-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* =============================================
+       MOBILE & ACCESSIBILITY POLISH
+       ============================================= */
+
+    /* Prevent double-tap zoom and tap delay on interactive elements */
+    .pack-container,
+    .card-stack,
+    .next-card-btn,
+    .open-pack-btn,
+    .summary-thumb,
+    .card-viewer-back-btn,
+    .set-selector {
+      touch-action: manipulation;
+    }
+
+    /* Reduced motion preference */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* Summary grid: 2 cols on very small, 3 on small, 4 on desktop */
+    @media (max-width: 359px) {
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* Large desktop: wider summary and card viewer */
+    @media (min-width: 1200px) {
+      .summary-area { max-width: 600px; }
+      .summary-grid { gap: 12px; }
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-title">OPTCG Pack Opener</div>
+  </div>
+
+  <div class="set-selector-area">
+    <select class="set-selector" id="setSelector">
+      <option value="OP-01">OP-01 — Romance Dawn</option>
+      <option value="OP-02">OP-02 — Paramount War</option>
+      <option value="OP-03">OP-03 — Pillars of Strength</option>
+      <option value="OP-04">OP-04 — Kingdoms of Intrigue</option>
+      <option value="OP-05">OP-05 — Awakening of the New Era</option>
+      <option value="OP-06">OP-06 — Wings of the Captain</option>
+      <option value="OP-07">OP-07 — 500 Years in the Future</option>
+      <option value="EB-01">EB-01 — Memorial Collection</option>
+      <option value="OP-08">OP-08 — Two Legends</option>
+      <option value="OP-09">OP-09 — Emperors in the New World</option>
+      <option value="OP-10">OP-10 — Royal Blood</option>
+      <option value="OP-11">OP-11 — A Fist of Divine Speed</option>
+      <option value="EB-02">EB-02 — Anime 25th Collection</option>
+      <option value="OP-12">OP-12 — Legacy of the Master</option>
+      <option value="PRB-01">PRB-01 — Premium Booster: The Best</option>
+      <option value="PRB-02">PRB-02 — Premium Booster: The Best Vol. 2</option>
+      <option value="OP-13">OP-13 — Carrying On His Will</option>
+      <option value="OP14-EB04">OP-14/EB-04 — The Azure Sea's Seven</option>
+      <option value="EB-03">EB-03 — One Piece Heroines Edition</option>
+    </select>
+
+    <button class="open-pack-btn" id="openPackBtn" disabled>Open Pack</button>
+    <div class="status-text" id="statusText"></div>
+  </div>
+
+  <div class="pack-area" id="packArea"></div>
+
+  <script>
+    /* =============================================
+       CONFIGURATION
+       ============================================= */
+    const API_BASE = 'https://optcgapi.com/api';
+    const IMAGE_BASE = 'https://optcgapi.com/media/static/Card_Images';
+    const HOLO_RARITIES = ['L', 'R', 'SR', 'SEC', 'SP'];
+
+    /* =============================================
+       DOM REFERENCES
+       ============================================= */
+    const setSelector = document.getElementById('setSelector');
+    const openPackBtn = document.getElementById('openPackBtn');
+    const statusText = document.getElementById('statusText');
+    const packArea = document.getElementById('packArea');
+    const setSelectorArea = document.querySelector('.set-selector-area');
+
+    /* =============================================
+       SET DATA
+       ============================================= */
+    let setCards = [];       // all card objects from the API for this set
+    let baseCards = [];      // deduplicated unique base cards
+    let cardsByRarity = {};  // { C: [...], UC: [...], R: [...], SR: [...], ... }
+    let isSetLoaded = false;
+
+    /**
+     * Fetch all cards for a set, deduplicate, and group by rarity.
+     */
+    async function fetchSetData(setId) {
+      isSetLoaded = false;
+      openPackBtn.disabled = true;
+      statusText.textContent = '';
+
+      // Show loading spinner
+      packArea.innerHTML = '<div class="loader-spinner"></div>';
+
+      try {
+        const res = await fetch(`${API_BASE}/sets/${setId}/`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!Array.isArray(data) || data.length === 0) throw new Error('Empty set');
+
+        setCards = data;
+
+        // Deduplicate: group by card_set_id, keep the base (non-parallel) version
+        const groups = {};
+        for (const card of data) {
+          const id = card.card_set_id;
+          if (!id) continue;
+          if (!groups[id]) groups[id] = [];
+          groups[id].push(card);
+        }
+
+        baseCards = Object.keys(groups)
+          .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+          .map(id => {
+            const variants = groups[id];
+            return variants.find(v => !v.card_image_id || !v.card_image_id.includes('_p')) || variants[0];
+          });
+
+        // Group base cards by rarity
+        cardsByRarity = {};
+        for (const card of baseCards) {
+          const r = (card.rarity || 'C').toUpperCase();
+          if (!cardsByRarity[r]) cardsByRarity[r] = [];
+          cardsByRarity[r].push(card);
+        }
+
+        isSetLoaded = true;
+        openPackBtn.disabled = false;
+        packArea.innerHTML = '';
+        statusText.textContent = `${baseCards.length} unique cards loaded. Ready to open!`;
+
+      } catch (err) {
+        packArea.innerHTML = '';
+        statusText.textContent = 'Failed to load set data. Try a different set or check your connection.';
+      }
+    }
+
+    /* =============================================
+       PACK GENERATION
+       ============================================= */
+    const PACK_SIZE = 12;
+    // Rarity sort order (lowest → highest for pack tension)
+    const RARITY_ORDER = { C: 0, UC: 1, R: 2, L: 3, SR: 4, SP: 5, SEC: 6 };
+
+    const DEBUG_FORCE_RARES = false;
+
+    /**
+     * Pick N random unique cards from an array.
+     * Returns a new array. Avoids duplicates within the pick and with `exclude`.
+     */
+    function pickRandom(pool, count, exclude = new Set()) {
+      const available = pool.filter(c => !exclude.has(c.card_set_id));
+      const picked = [];
+      const used = new Set();
+      while (picked.length < count && available.length > 0) {
+        const idx = Math.floor(Math.random() * available.length);
+        const card = available[idx];
+        if (!used.has(card.card_set_id)) {
+          picked.push(card);
+          used.add(card.card_set_id);
+          available.splice(idx, 1);
+        }
+      }
+      return picked;
+    }
+
+    /**
+     * Generate a realistic 12-card booster pack:
+     * 5C + 3UC + 2R + 1SR + 1 bonus (90% R, 10% SEC/SP)
+     * Sorted from lowest rarity to highest (C → SEC).
+     */
+    function generatePack() {
+      // DEBUG: Force a pack with all rarities represented for testing effects
+      if (DEBUG_FORCE_RARES) {
+        const usedIds = new Set();
+        const pack = [];
+        const debugDistribution = [
+          ['C', 3], ['UC', 2], ['R', 2], ['L', 1], ['SR', 2], ['SEC', 1], ['SP', 1]
+        ];
+        for (const [rarity, count] of debugDistribution) {
+          const pool = cardsByRarity[rarity] || [];
+          const picks = pickRandom(pool, count, usedIds);
+          for (const c of picks) usedIds.add(c.card_set_id);
+          pack.push(...picks);
+        }
+        // Fill remaining slots if any rarity was missing
+        while (pack.length < PACK_SIZE) {
+          const remaining = baseCards.filter(c => !usedIds.has(c.card_set_id));
+          if (remaining.length === 0) break;
+          const card = remaining[Math.floor(Math.random() * remaining.length)];
+          usedIds.add(card.card_set_id);
+          pack.push(card);
+        }
+        pack.sort((a, b) => {
+          const ra = RARITY_ORDER[(a.rarity || 'C').toUpperCase()] ?? 1;
+          const rb = RARITY_ORDER[(b.rarity || 'C').toUpperCase()] ?? 1;
+          return ra - rb;
+        });
+        return pack;
+      }
+
+      const usedIds = new Set();
+      const pack = [];
+
+      function addCards(rarity, count) {
+        const pool = cardsByRarity[rarity] || [];
+        const picks = pickRandom(pool, count, usedIds);
+        for (const c of picks) usedIds.add(c.card_set_id);
+        pack.push(...picks);
+        return picks.length;
+      }
+
+      // 5 Commons
+      addCards('C', 5);
+      // 3 Uncommons
+      addCards('UC', 3);
+      // 2 Rares
+      addCards('R', 2);
+      // 1 Super Rare (guaranteed)
+      addCards('SR', 1);
+
+      // Bonus 12th slot: 10% chance SEC or SP, otherwise another R
+      const hasSecretOrSpecial = (cardsByRarity['SEC'] || []).length > 0 || (cardsByRarity['SP'] || []).length > 0;
+      const bonusRoll = Math.random();
+
+      if (hasSecretOrSpecial && bonusRoll < 0.10) {
+        // Try SEC first, then SP
+        let added = 0;
+        if ((cardsByRarity['SEC'] || []).length > 0) {
+          added = addCards('SEC', 1);
+        }
+        if (added === 0 && (cardsByRarity['SP'] || []).length > 0) {
+          added = addCards('SP', 1);
+        }
+        if (added === 0) addCards('R', 1); // fallback
+      } else {
+        addCards('R', 1);
+      }
+
+      // If pack is under 12 (set lacks certain rarities), fill with whatever is available
+      while (pack.length < PACK_SIZE) {
+        const remaining = baseCards.filter(c => !usedIds.has(c.card_set_id));
+        if (remaining.length === 0) break;
+        const card = remaining[Math.floor(Math.random() * remaining.length)];
+        usedIds.add(card.card_set_id);
+        pack.push(card);
+      }
+
+      // Sort by rarity: C first → SEC last
+      pack.sort((a, b) => {
+        const ra = RARITY_ORDER[(a.rarity || 'C').toUpperCase()] ?? 1;
+        const rb = RARITY_ORDER[(b.rarity || 'C').toUpperCase()] ?? 1;
+        return ra - rb;
+      });
+
+      return pack;
+    }
+
+    let currentPack = [];
+    let packState = 'idle'; // idle | pack | tearing | reveal | summary
+
+    /* =============================================
+       PACK VISUAL & TEAR-FROM-TOP ANIMATION
+       ============================================= */
+
+    /**
+     * Pack image URL map — real booster pack artwork from official OPTCG site.
+     * Primary: high-res product shot (.webp). Thumbnail: fallback (.png).
+     */
+    const PACK_IMAGE_MAP = {
+      'OP-01':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op01/img_item01.webp',
+                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op01/img_thumbnail.png' },
+      'OP-02':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op02/img_item01.webp',
+                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op02/img_thumbnail.png' },
+      'OP-03':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op03/img_item01.webp',
+                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op03/img_thumbnail.png' },
+      'OP-04':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op04/img_item01.webp',
+                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op04/img_thumbnail.png' },
+      'OP-05':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op05/img_item01.webp',
+                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op05/img_thumbnail.png' },
+      'OP-06':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op06/img_item01.webp',
+                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op06/img_thumbnail.png' },
+      'OP-07':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op07/img_item01.webp',
+                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op07/img_thumbnail.png' },
+      'OP-08':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op08/img_item01.webp',
+                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op08/img_thumbnail.png' },
+      'OP-09':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op09/img_item01.webp',
+                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op09/img_thumbnail.png' },
+      'OP-10':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op10/img_item01.webp',
+                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op10/img_thumbnail.png' },
+      'OP-11':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op11/img_item01.webp',
+                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op11/img_thumbnail.png' },
+      'OP-12':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op12/img_item01.webp',
+                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op12/img_thumbnail.png' },
+      'OP-13':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op13/img_item01.webp',
+                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op13/img_thumbnail.png' },
+      'OP14-EB04':{ primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op14/img_item01.webp',
+                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op14-eb04/img_thumbnail.png' },
+    };
+
+    /**
+     * Set-specific colors for CSS fallback pack design.
+     */
+    const SET_COLORS = {
+      'OP-01':    { primary: '#c41e2a', secondary: '#8b0000' },
+      'OP-02':    { primary: '#1a5276', secondary: '#0c2d48' },
+      'OP-03':    { primary: '#1e8449', secondary: '#0b5345' },
+      'OP-04':    { primary: '#6c3483', secondary: '#3b1a5e' },
+      'OP-05':    { primary: '#c0392b', secondary: '#922b21' },
+      'OP-06':    { primary: '#2e86c1', secondary: '#1a5276' },
+      'OP-07':    { primary: '#d4ac0d', secondary: '#7d6608' },
+      'OP-08':    { primary: '#c0392b', secondary: '#1a5276' },
+      'OP-09':    { primary: '#b7950b', secondary: '#7d6608' },
+      'OP-10':    { primary: '#8e44ad', secondary: '#6c3483' },
+      'OP-11':    { primary: '#e67e22', secondary: '#a04000' },
+      'OP-12':    { primary: '#1abc9c', secondary: '#0e6655' },
+      'OP-13':    { primary: '#c0392b', secondary: '#641e16' },
+      'OP14-EB04':{ primary: '#2874a6', secondary: '#1a5276' },
+      'EB-01':    { primary: '#b7950b', secondary: '#6e5a08' },
+      'EB-02':    { primary: '#c0392b', secondary: '#7b241c' },
+      'EB-03':    { primary: '#e84393', secondary: '#a0206e' },
+      'PRB-01':   { primary: '#d4ac0d', secondary: '#7d6608' },
+      'PRB-02':   { primary: '#d4ac0d', secondary: '#7d6608' },
+    };
+
+    /**
+     * Get the selected set's short display name.
+     */
+    function getSetShortName() {
+      const opt = setSelector.options[setSelector.selectedIndex];
+      return opt ? opt.textContent.replace(/^[\w\/-]+\s*—\s*/, '') : '';
+    }
+
+    /**
+     * Load a pack image with cascading fallback: primary → thumbnail → CSS fallback.
+     */
+    function loadPackImage(imgEl, setId, fallbackEl) {
+      const urls = PACK_IMAGE_MAP[setId];
+      if (!urls) {
+        imgEl.style.display = 'none';
+        if (fallbackEl) fallbackEl.classList.add('active');
+        return;
+      }
+
+      imgEl.src = urls.primary;
+      imgEl.onerror = function() {
+        imgEl.src = urls.thumb;
+        imgEl.onerror = function() {
+          imgEl.style.display = 'none';
+          if (fallbackEl) fallbackEl.classList.add('active');
+        };
+      };
+    }
+
+    /**
+     * Show the booster pack visual in the pack area.
+     */
+    function showPack() {
+      packState = 'pack';
+      setSelectorArea.classList.add('hidden');
+
+      const setId = setSelector.value;
+      const shortName = getSetShortName();
+      const colors = SET_COLORS[setId] || { primary: '#c41e2a', secondary: '#8b0000' };
+
+      packArea.innerHTML = `
+        <div class="pack-perspective">
+          <div class="pack-container" id="packContainer"
+               style="--pack-primary:${colors.primary};--pack-secondary:${colors.secondary}">
+            <!-- Foil shine overlay -->
+            <div class="pack-shine" id="packShine"></div>
+            <!-- Cut sweep line -->
+            <div class="pack-cut-line"></div>
+            <!-- Layer 1: card stack (visible through tear) -->
+            <div class="pack-inner" id="packInner">
+              <div class="pack-inner-stack" id="packInnerStack">
+              </div>
+            </div>
+            <!-- Layer 2: bottom wrapper -->
+            <div class="pack-bottom" id="packBottom">
+              <img alt="Pack wrapper">
+              <div class="pack-fallback" id="packFallbackBottom">
+                <div class="pack-fallback-brand">One Piece Card Game</div>
+                <div class="pack-fallback-name">${shortName}</div>
+                <div class="pack-fallback-sub">Booster Pack</div>
+              </div>
+            </div>
+            <!-- Layer 3: top flap -->
+            <div class="pack-top" id="packTop">
+              <img alt="Pack wrapper">
+              <div class="pack-fallback" id="packFallbackTop">
+                <div class="pack-fallback-brand">One Piece Card Game</div>
+                <div class="pack-fallback-name">${shortName}</div>
+                <div class="pack-fallback-sub">Booster Pack</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pack-prompt" id="packPrompt">Tap to open</div>
+      `;
+
+      statusText.textContent = '';
+
+      // Load pack images into both layers (same image, different clip-paths)
+      const topImg = document.querySelector('#packTop img');
+      const bottomImg = document.querySelector('#packBottom img');
+      const fallbackTop = document.getElementById('packFallbackTop');
+      const fallbackBottom = document.getElementById('packFallbackBottom');
+
+      // Both layers share the same fallback state
+      loadPackImage(topImg, setId, fallbackTop);
+      loadPackImage(bottomImg, setId, fallbackBottom);
+
+      // Populate the inner card stack with actual card faces
+      const innerStack = document.getElementById('packInnerStack');
+      const stackCount = Math.min(currentPack.length, 4);
+      for (let i = stackCount - 1; i >= 0; i--) {
+        const card = currentPack[i];
+        const div = document.createElement('div');
+        div.className = 'pack-inner-card';
+        div.style.transform = `translateY(${i * 2}px)`;
+        const img = document.createElement('img');
+        img.src = getCardImageUrl(card);
+        img.alt = card.card_name || 'Card';
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;border-radius:4px;';
+        div.appendChild(img);
+        innerStack.appendChild(div);
+      }
+
+      // Preload all 12 card images into hidden DOM elements so they stay cached
+      const preloadContainer = document.createElement('div');
+      preloadContainer.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;pointer-events:none;';
+      for (const card of currentPack) {
+        const img = document.createElement('img');
+        img.src = getCardImageUrl(card);
+        preloadContainer.appendChild(img);
+      }
+      document.body.appendChild(preloadContainer);
+
+      // Attach tear handler and tilt interaction
+      const container = document.getElementById('packContainer');
+      container.addEventListener('click', tearPack, { once: true });
+      initPackTilt(container);
+    }
+
+    /* =============================================
+       PACK TILT & FOIL SHINE INTERACTION
+       ============================================= */
+    let packTiltRAF = null;
+    let packTiltTarget = { rx: 0, ry: 0 };
+    let packTiltCurrent = { rx: 0, ry: 0 };
+
+    function initPackTilt(container) {
+      const shine = document.getElementById('packShine');
+      const maxTilt = 15;
+      const lerp = 0.12;
+
+      function updateTilt() {
+        packTiltCurrent.rx += (packTiltTarget.rx - packTiltCurrent.rx) * lerp;
+        packTiltCurrent.ry += (packTiltTarget.ry - packTiltCurrent.ry) * lerp;
+        container.style.transform = `rotateX(${packTiltCurrent.rx}deg) rotateY(${packTiltCurrent.ry}deg)`;
+        packTiltRAF = requestAnimationFrame(updateTilt);
+      }
+
+      packTiltRAF = requestAnimationFrame(updateTilt);
+
+      container.addEventListener('mousemove', (e) => {
+        if (packState === 'tearing') return;
+        const rect = container.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = (e.clientY - rect.top) / rect.height;
+
+        packTiltTarget.ry = (x - 0.5) * maxTilt * 2;
+        packTiltTarget.rx = (0.5 - y) * maxTilt * 2;
+
+        // Update radial shine position — follows cursor directly
+        if (shine) {
+          shine.style.setProperty('--shine-x', `${x * 100}%`);
+          shine.style.setProperty('--shine-y', `${y * 100}%`);
+        }
+      });
+
+      container.addEventListener('mouseleave', () => {
+        packTiltTarget.rx = 0;
+        packTiltTarget.ry = 0;
+        if (shine) {
+          shine.style.setProperty('--shine-x', '50%');
+          shine.style.setProperty('--shine-y', '50%');
+        }
+      });
+
+      container.addEventListener('touchmove', (e) => {
+        if (packState === 'tearing') return;
+        const touch = e.touches[0];
+        const rect = container.getBoundingClientRect();
+        const x = (touch.clientX - rect.left) / rect.width;
+        const y = (touch.clientY - rect.top) / rect.height;
+        packTiltTarget.ry = (x - 0.5) * maxTilt * 2;
+        packTiltTarget.rx = (0.5 - y) * maxTilt * 2;
+        if (shine) {
+          shine.style.setProperty('--shine-x', `${x * 100}%`);
+          shine.style.setProperty('--shine-y', `${y * 100}%`);
+        }
+      }, { passive: true });
+
+      container.addEventListener('touchend', () => {
+        packTiltTarget.rx = 0;
+        packTiltTarget.ry = 0;
+        if (shine) {
+          shine.style.setProperty('--shine-x', '50%');
+          shine.style.setProperty('--shine-y', '50%');
+        }
+      });
+    }
+
+    function stopPackTilt() {
+      if (packTiltRAF) {
+        cancelAnimationFrame(packTiltRAF);
+        packTiltRAF = null;
+      }
+      packTiltTarget = { rx: 0, ry: 0 };
+      packTiltCurrent = { rx: 0, ry: 0 };
+    }
+
+    /**
+     * Tear open the pack with the top-flap animation.
+     */
+    function tearPack() {
+      if (packState !== 'pack') return;
+      packState = 'tearing';
+
+      // Stop tilt interaction and flatten the pack
+      stopPackTilt();
+
+      const container = document.getElementById('packContainer');
+      container.style.transform = 'rotateX(0) rotateY(0)';
+      container.classList.add('tearing');
+
+      // Hide the "Tap to open" prompt
+      const prompt = document.getElementById('packPrompt');
+      if (prompt) prompt.classList.add('hidden');
+
+      // Listen for the bottom wrapper slide to end, then transition to card reveal
+      const packBottom = document.getElementById('packBottom');
+      packBottom.addEventListener('animationend', () => {
+        setTimeout(() => onPackOpened(), 200);
+      }, { once: true });
+    }
+
+    /* =============================================
+       CARD REVEAL SYSTEM — Pre-built stack architecture
+       All 12 cards exist in the DOM from the start.
+       Advancing = add .departing to current top + decrement --i on remaining.
+       ============================================= */
+    let revealIndex = 0;
+    let cardTiltRAF = null;
+    let cardTiltTarget = { rx: 0, ry: 0 };
+    let cardTiltCurrent = { rx: 0, ry: 0 };
+    const CARD_TILT_MAX = 18;
+    const CARD_LERP = 0.12;
+    const HOLO_SHIFT = 3;
+    const TILT_PERSPECTIVE = 900;
+    let swipeStartY = 0;
+    let swipeStartX = 0;
+    let isAdvancing = false;
+
+    function getCardImageUrl(card) {
+      if (!card.card_set_id) return '';
+      return `${IMAGE_BASE}/${card.card_set_id}.jpg`;
+    }
+
+    /**
+     * Called after the pack tear animation finishes.
+     */
+    function onPackOpened() {
+      packState = 'reveal';
+      revealIndex = 0;
+      showCardRevealUI();
+    }
+
+    /**
+     * Build the full card reveal UI with ALL 12 cards pre-built in the DOM.
+     */
+    function showCardRevealUI() {
+      const card = currentPack[0];
+
+      // Build all 12 stack cards
+      let stackHTML = '';
+      for (let i = 0; i < currentPack.length; i++) {
+        const c = currentPack[i];
+        const imgUrl = getCardImageUrl(c);
+        const rarity = (c.rarity || 'C').toUpperCase();
+        const isHolo = HOLO_RARITIES.includes(rarity);
+        const isHidden = i >= 5; // only show top 5
+
+        stackHTML += `
+          <div class="stack-card ${i === 0 ? 'hero' : ''} ${isHolo ? 'holo-eligible' : ''} ${isHidden ? 'stack-hidden' : ''}"
+               data-index="${i}" style="--i: ${i}">
+            <img src="${imgUrl}" alt="${c.card_name || 'Card'}"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="stack-card-fallback" style="display:none">${c.card_set_id || '?'}</div>
+            ${i === 0 ? '<div class="holo-overlay" id="holoOverlay"></div><div class="holo-texture" id="holoTexture"></div>' : ''}
+          </div>
+        `;
+      }
+
+      packArea.innerHTML = `
+        <div class="card-reveal-area">
+          <div class="card-counter" id="cardCounter">Card 1 of ${currentPack.length}</div>
+          <div class="card-stack" id="cardStack">
+            ${stackHTML}
+          </div>
+          <div class="card-info" id="cardInfo">
+            <div class="card-info-name">${card.card_name || 'Unknown'}</div>
+            <div class="card-info-id">${card.card_set_id || ''}</div>
+            <div class="card-info-rarity rarity-${(card.rarity || 'c').toLowerCase()}">${(card.rarity || 'C').toUpperCase()}</div>
+          </div>
+          <button class="next-card-btn" id="nextCardBtn">
+            ${currentPack.length > 1 ? 'Next Card' : 'View Results'}
+          </button>
+        </div>
+      `;
+
+      statusText.textContent = '';
+
+      const cardStack = document.getElementById('cardStack');
+
+      // Add .revealed after a frame so the CSS transition fires smoothly
+      requestAnimationFrame(() => {
+        if (cardStack) cardStack.classList.add('revealed');
+      });
+
+      // Card info builds in AFTER the 0.5s scale-up completes
+      setTimeout(() => {
+        const cardInfo = document.getElementById('cardInfo');
+        if (cardInfo) cardInfo.classList.add('visible');
+      }, 550);
+
+      // Show next button after info
+      setTimeout(() => {
+        const nextBtn = document.getElementById('nextCardBtn');
+        if (nextBtn) nextBtn.classList.add('visible');
+      }, 700);
+
+      // Init tilt on hero + rare emphasis
+      const hero = cardStack.querySelector('.stack-card.hero');
+      if (cardStack && hero) {
+        initCardTilt(cardStack, hero);
+        applyRareEmphasis(hero, 0);
+      }
+
+      // Next button handler
+      document.getElementById('nextCardBtn').addEventListener('click', advanceCard);
+
+      // Swipe-up handler
+      initSwipeUp(cardStack);
+    }
+
+    function advanceCard() {
+      if (isAdvancing) return;
+      isAdvancing = true;
+
+      if (revealIndex >= currentPack.length - 1) {
+        // Last card — go to summary
+        packState = 'summary';
+        stopCardTilt();
+        setTimeout(() => showPackSummary(), 600);
+        isAdvancing = false;
+        return;
+      }
+
+      stopCardTilt();
+
+      const cardStack = document.getElementById('cardStack');
+      const allCards = cardStack.querySelectorAll('.stack-card:not(.departing)');
+
+      // 1. Current top card departs
+      const currentHero = allCards[0];
+      currentHero.classList.remove('hero');
+      currentHero.classList.add('departing');
+
+      // 2. Decrement --i on all remaining cards (smooth CSS transition)
+      for (let j = 1; j < allCards.length; j++) {
+        const card = allCards[j];
+        const currentI = parseInt(card.style.getPropertyValue('--i'));
+        card.style.setProperty('--i', currentI - 1);
+
+        // Reveal cards that were hidden (now entering the visible top 5)
+        if (currentI - 1 < 5) {
+          card.classList.remove('stack-hidden');
+        }
+      }
+
+      // 3. New hero
+      const newHero = allCards[1];
+      newHero.classList.add('hero');
+
+      // Add holo overlays to new hero if eligible
+      if (newHero.classList.contains('holo-eligible') && !newHero.querySelector('.holo-overlay')) {
+        const holoDiv = document.createElement('div');
+        holoDiv.className = 'holo-overlay';
+        holoDiv.id = 'holoOverlay';
+        const texDiv = document.createElement('div');
+        texDiv.className = 'holo-texture';
+        texDiv.id = 'holoTexture';
+        newHero.appendChild(holoDiv);
+        newHero.appendChild(texDiv);
+      }
+
+      revealIndex++;
+
+      // 4. Update info + button
+      const card = currentPack[revealIndex];
+      const rarity = (card.rarity || 'C').toUpperCase();
+      const cardInfo = document.getElementById('cardInfo');
+      const nextBtn = document.getElementById('nextCardBtn');
+
+      // Fade out info, update, fade back in
+      if (cardInfo) {
+        cardInfo.classList.remove('visible');
+        setTimeout(() => {
+          cardInfo.innerHTML = `
+            <div class="card-info-name">${card.card_name || 'Unknown'}</div>
+            <div class="card-info-id">${card.card_set_id || ''}</div>
+            <div class="card-info-rarity rarity-${rarity.toLowerCase()}">${rarity}</div>
+          `;
+          requestAnimationFrame(() => cardInfo.classList.add('visible'));
+        }, 200);
+      }
+
+      if (nextBtn) {
+        nextBtn.textContent = revealIndex < currentPack.length - 1 ? 'Next Card' : 'View Results';
+      }
+
+      // Update counter
+      const counter = document.getElementById('cardCounter');
+      if (counter) counter.textContent = `Card ${revealIndex + 1} of ${currentPack.length}`;
+
+      // Init tilt on new hero + rare emphasis
+      initCardTilt(cardStack, newHero);
+      applyRareEmphasis(newHero, revealIndex);
+
+      // Clean up departed card after transition
+      setTimeout(() => {
+        currentHero.style.display = 'none';
+        isAdvancing = false;
+      }, 400);
+    }
+
+    function initCardTilt(container, heroCard) {
+      stopCardTilt();
+
+      function getHoloElements() {
+        return {
+          overlay: heroCard.querySelector('.holo-overlay') || document.getElementById('holoOverlay'),
+          texture: heroCard.querySelector('.holo-texture') || document.getElementById('holoTexture')
+        };
+      }
+
+      function applyCardTilt(rotX, rotY) {
+        heroCard.style.transform = `translateY(calc(var(--i) * 2px)) rotateX(${rotX.toFixed(2)}deg) rotateY(${rotY.toFixed(2)}deg)`;
+
+        // Only update box-shadow if glow animation isn't active
+        if (!glowActive) {
+          const shadowX = -rotY * 0.8;
+          const shadowY = rotX * 0.8;
+          const shadowBlur = 24 + (Math.abs(rotX) + Math.abs(rotY)) * 0.5;
+          heroCard.style.boxShadow = `0 0 20px var(--card-glow-color), ${shadowX.toFixed(1)}px ${shadowY.toFixed(1)}px ${shadowBlur.toFixed(0)}px rgba(0, 0, 0, 0.5)`;
+        }
+
+        const { overlay: holoOverlay, texture: holoTexture } = getHoloElements();
+        if (holoOverlay && heroCard.classList.contains('holo-eligible')) {
+          const holoX = 50 + rotY * HOLO_SHIFT;
+          const holoY = 50 - rotX * HOLO_SHIFT;
+          const spotX = 50 + rotY * 2.5;
+          const spotY = 50 - rotX * 2.5;
+          const holoAngle = 115 + Math.atan2(rotX, rotY) * (180 / Math.PI);
+
+          holoOverlay.style.background = `
+            radial-gradient(circle at ${spotX.toFixed(1)}% ${spotY.toFixed(1)}%, rgba(255,255,255,0.35) 0%, transparent 60%),
+            linear-gradient(${holoAngle.toFixed(0)}deg, #ff000088, #ff880088, #ffff0088, #00ff0088, #0088ff88, #8800ff88, #ff000088)
+          `;
+          holoOverlay.style.backgroundSize = '100% 100%, var(--holo-size)';
+          holoOverlay.style.backgroundPosition = `center, ${holoX.toFixed(1)}% ${holoY.toFixed(1)}%`;
+
+          if (holoTexture) {
+            const texX = 50 + rotY * HOLO_SHIFT * 0.5;
+            const texY = 50 - rotX * HOLO_SHIFT * 0.5;
+            holoTexture.style.backgroundPosition = `${texX.toFixed(1)}% ${texY.toFixed(1)}%`;
+          }
+        }
+      }
+
+      function tiltLoop() {
+        cardTiltCurrent.rx += (cardTiltTarget.rx - cardTiltCurrent.rx) * CARD_LERP;
+        cardTiltCurrent.ry += (cardTiltTarget.ry - cardTiltCurrent.ry) * CARD_LERP;
+        applyCardTilt(cardTiltCurrent.rx, cardTiltCurrent.ry);
+        cardTiltRAF = requestAnimationFrame(tiltLoop);
+      }
+
+      cardTiltRAF = requestAnimationFrame(tiltLoop);
+
+      container.addEventListener('mousemove', (e) => {
+        const rect = container.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+        const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+        cardTiltTarget.ry = x * CARD_TILT_MAX;
+        cardTiltTarget.rx = -y * CARD_TILT_MAX;
+      });
+
+      container.addEventListener('mouseleave', () => {
+        cardTiltTarget.rx = 0;
+        cardTiltTarget.ry = 0;
+      });
+
+      container.addEventListener('touchmove', (e) => {
+        const touch = e.touches[0];
+        const rect = container.getBoundingClientRect();
+        const x = ((touch.clientX - rect.left) / rect.width - 0.5) * 2;
+        const y = ((touch.clientY - rect.top) / rect.height - 0.5) * 2;
+        cardTiltTarget.ry = x * CARD_TILT_MAX;
+        cardTiltTarget.rx = -y * CARD_TILT_MAX;
+      }, { passive: true });
+
+      container.addEventListener('touchend', () => {
+        cardTiltTarget.rx = 0;
+        cardTiltTarget.ry = 0;
+      });
+    }
+
+    function stopCardTilt() {
+      if (cardTiltRAF) {
+        cancelAnimationFrame(cardTiltRAF);
+        cardTiltRAF = null;
+      }
+      cardTiltTarget = { rx: 0, ry: 0 };
+      cardTiltCurrent = { rx: 0, ry: 0 };
+    }
+
+    /* =============================================
+       RARE CARD EMPHASIS
+       ============================================= */
+    const RARE_GLOW_RARITIES = ['SR', 'SEC', 'SP'];
+
+    /**
+     * Apply rare card emphasis effects to the current hero card.
+     * Called when a card becomes the hero (on reveal or advance).
+     */
+    // Track whether glow animation is active (prevents tilt from overwriting box-shadow)
+    let glowActive = false;
+
+    function applyRareEmphasis(heroEl, cardIndex) {
+      const card = currentPack[cardIndex];
+      const rarity = (card.rarity || 'C').toUpperCase();
+      const isLast = cardIndex === currentPack.length - 1;
+
+      if (!RARE_GLOW_RARITIES.includes(rarity) && !isLast) return;
+
+
+      // Determine glow class and duration
+      let glowClass, glowDuration;
+      if (isLast) {
+        glowClass = 'rare-glow-last';
+        glowDuration = 1500;
+        setTimeout(() => heroEl.classList.add('rare-scale-pulse'), 1500);
+      } else if (rarity === 'SEC' || rarity === 'SP') {
+        glowClass = 'rare-glow-sec';
+        glowDuration = 1200;
+      } else if (rarity === 'SR') {
+        glowClass = 'rare-glow-sr';
+        glowDuration = 800;
+      }
+
+      // Block tilt from overwriting box-shadow during glow
+      glowActive = true;
+      heroEl.classList.add(glowClass);
+      setTimeout(() => { glowActive = false; }, glowDuration);
+
+      // More intense holo on SEC/SP
+      if (rarity === 'SEC' || rarity === 'SP') {
+        heroEl.classList.add('holo-intense');
+      }
+
+      // Sparkle burst — spawn on the card stack parent so they aren't clipped
+      const sparkleCount = isLast ? 40 : (rarity === 'SEC' || rarity === 'SP') ? 28 : 16;
+      const sparkleColor = (rarity === 'SEC' || rarity === 'SP' || isLast) ? 'gold' : 'silver';
+      const delay = isLast ? 1200 : (rarity === 'SEC' || rarity === 'SP') ? 800 : 400;
+
+      setTimeout(() => {
+        const cardStack = document.getElementById('cardStack');
+        if (cardStack) spawnSparkles(cardStack, heroEl, sparkleCount, sparkleColor);
+      }, delay);
+    }
+
+    /**
+     * Spawn sparkle particles around a card element.
+     * Appended to stackEl (not cardEl) to avoid overflow:hidden clipping.
+     */
+    function spawnSparkles(stackEl, cardEl, count, colorClass) {
+      const container = document.createElement('div');
+      container.className = 'sparkle-container';
+      stackEl.appendChild(container);
+
+      const rect = cardEl.getBoundingClientRect();
+      const stackRect = stackEl.getBoundingClientRect();
+      const cx = rect.width / 2;
+      const cy = rect.height / 2;
+
+      // Offset from stack to card (for positioning sparkles correctly)
+      const offX = rect.left - stackRect.left;
+      const offY = rect.top - stackRect.top;
+
+      for (let i = 0; i < count; i++) {
+        const sparkle = document.createElement('div');
+        sparkle.className = `sparkle ${colorClass}`;
+
+        // Random position along sides and top only (no bottom)
+        const edge = Math.random();
+        let x, y;
+        if (edge < 0.4) {
+          // Top edge
+          x = offX + Math.random() * rect.width; y = offY;
+        } else if (edge < 0.7) {
+          // Left edge
+          x = offX; y = offY + Math.random() * rect.height * 0.7;
+        } else {
+          // Right edge
+          x = offX + rect.width; y = offY + Math.random() * rect.height * 0.7;
+        }
+
+        // Shoot outward from the card — further distance
+        const cardCx = offX + cx;
+        const cardCy = offY + cy;
+        const angle = Math.atan2(y - cardCy, x - cardCx) + (Math.random() - 0.5) * 0.6;
+        const distance = 80 + Math.random() * 100;
+        const tx = Math.cos(angle) * distance;
+        const ty = Math.sin(angle) * distance;
+
+        sparkle.style.left = `${x}px`;
+        sparkle.style.top = `${y}px`;
+        sparkle.style.setProperty('--tx', `${tx}px`);
+        sparkle.style.setProperty('--ty', `${ty}px`);
+        sparkle.style.setProperty('--delay', `${Math.random() * 0.3}s`);
+        sparkle.style.setProperty('--duration', `${0.6 + Math.random() * 0.4}s`);
+        sparkle.style.width = `${6 + Math.random() * 6}px`;
+        sparkle.style.height = sparkle.style.width;
+
+        container.appendChild(sparkle);
+      }
+
+      // Clean up after animation
+      setTimeout(() => container.remove(), 1500);
+    }
+
+    function initSwipeUp(container) {
+      container.addEventListener('touchstart', (e) => {
+        swipeStartY = e.touches[0].clientY;
+        swipeStartX = e.touches[0].clientX;
+      }, { passive: true });
+
+      container.addEventListener('touchend', (e) => {
+        const dy = swipeStartY - e.changedTouches[0].clientY;
+        const dx = Math.abs(swipeStartX - e.changedTouches[0].clientX);
+        if (dy > 50 && dx < 30) {
+          advanceCard();
+        }
+      }, { passive: true });
+    }
+
+    /* =============================================
+       PACK SUMMARY
+       ============================================= */
+    function showPackSummary() {
+      // Count rarities
+      const rarityCounts = {};
+      currentPack.forEach(card => {
+        const r = (card.rarity || 'C').toUpperCase();
+        rarityCounts[r] = (rarityCounts[r] || 0) + 1;
+      });
+      const statsText = Object.entries(rarityCounts)
+        .sort((a, b) => {
+          const order = ['C', 'UC', 'R', 'L', 'SR', 'SEC', 'SP'];
+          return order.indexOf(a[0]) - order.indexOf(b[0]);
+        })
+        .map(([r, count]) => `${count}${r}`)
+        .join(', ');
+
+      // Build thumbnail grid
+      let thumbsHTML = '';
+      currentPack.forEach((card, i) => {
+        const imgUrl = getCardImageUrl(card);
+        const rarity = (card.rarity || 'C').toUpperCase();
+        let rareClass = '';
+        if (rarity === 'SR') rareClass = 'rare-sr';
+        else if (rarity === 'SEC' || rarity === 'SP') rareClass = 'rare-sec';
+
+        thumbsHTML += `
+          <div class="summary-thumb ${rareClass}" data-index="${i}">
+            <img src="${imgUrl}" alt="${card.card_name || 'Card'}"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="summary-thumb-fallback" style="display:none">${card.card_set_id || '?'}</div>
+            ${rarity !== 'C' && rarity !== 'UC' ? `<div class="summary-thumb-rarity">${rarity}</div>` : ''}
+          </div>
+        `;
+      });
+
+      packArea.innerHTML = `
+        <div class="summary-area">
+          <div class="summary-title">PACK RESULTS</div>
+          <div class="summary-stats">You pulled: ${statsText}</div>
+          <div class="summary-grid" id="summaryGrid">
+            ${thumbsHTML}
+          </div>
+          <div class="summary-actions">
+            <button class="next-card-btn visible" id="openAnotherBtn" style="pointer-events:auto">Open Another Pack</button>
+          </div>
+        </div>
+      `;
+
+      setSelectorArea.classList.remove('hidden');
+
+      // Thumbnail click → full card viewer
+      document.getElementById('summaryGrid').addEventListener('click', (e) => {
+        const thumb = e.target.closest('.summary-thumb');
+        if (!thumb) return;
+        const idx = parseInt(thumb.dataset.index);
+        openCardViewer(idx);
+      });
+
+      // Open Another Pack
+      document.getElementById('openAnotherBtn').addEventListener('click', () => {
+        if (!isSetLoaded) return;
+        currentPack = generatePack();
+        console.log('Generated pack:', currentPack);
+        showPack();
+      });
+    }
+
+    function openCardViewer(cardIndex) {
+      const card = currentPack[cardIndex];
+      const imgUrl = getCardImageUrl(card);
+      const rarity = (card.rarity || 'C').toUpperCase();
+      const isHolo = HOLO_RARITIES.includes(rarity);
+
+      const overlay = document.createElement('div');
+      overlay.className = 'card-viewer-overlay';
+      overlay.innerHTML = `
+        <div class="card-viewer-stage" id="viewerStage">
+          <div class="card-viewer-card ${isHolo ? 'holo-eligible' : ''}">
+            <img src="${imgUrl}" alt="${card.card_name || 'Card'}"
+                 onerror="this.alt='${card.card_set_id || '?'}'">
+            ${isHolo ? '<div class="holo-overlay" id="viewerHolo"></div><div class="holo-texture" id="viewerTexture"></div>' : ''}
+          </div>
+        </div>
+        <div class="card-viewer-info">
+          <div class="card-viewer-name">${card.card_name || 'Unknown'}</div>
+          <div class="card-viewer-meta">${card.card_set_id || ''} · ${rarity}</div>
+        </div>
+        <button class="card-viewer-back-btn" id="viewerBackBtn">Back to Summary</button>
+      `;
+
+      document.body.appendChild(overlay);
+
+      // Tilt on the viewer card
+      const stage = overlay.querySelector('#viewerStage');
+      const viewerCard = overlay.querySelector('.card-viewer-card');
+      initViewerTilt(stage, viewerCard);
+
+      // Back button
+      overlay.querySelector('#viewerBackBtn').addEventListener('click', () => {
+        stopViewerTilt();
+        overlay.remove();
+      });
+
+      // Tap overlay background to close
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          stopViewerTilt();
+          overlay.remove();
+        }
+      });
+    }
+
+    let viewerTiltRAF = null;
+    let viewerTiltTarget = { rx: 0, ry: 0 };
+    let viewerTiltCurrent = { rx: 0, ry: 0 };
+
+    function initViewerTilt(stage, cardEl) {
+      stopViewerTilt();
+
+      function applyTilt(rotX, rotY) {
+        cardEl.style.transform = `perspective(${TILT_PERSPECTIVE}px) rotateX(${rotX.toFixed(2)}deg) rotateY(${rotY.toFixed(2)}deg)`;
+
+        const shadowX = -rotY * 0.8;
+        const shadowY = rotX * 0.8;
+        const shadowBlur = 24 + (Math.abs(rotX) + Math.abs(rotY)) * 0.5;
+        cardEl.style.boxShadow = `0 0 20px var(--card-glow-color), ${shadowX.toFixed(1)}px ${shadowY.toFixed(1)}px ${shadowBlur.toFixed(0)}px rgba(0, 0, 0, 0.5)`;
+
+        const holoOverlay = cardEl.querySelector('.holo-overlay');
+        const holoTexture = cardEl.querySelector('.holo-texture');
+        if (holoOverlay && cardEl.classList.contains('holo-eligible')) {
+          const holoX = 50 + rotY * HOLO_SHIFT;
+          const holoY = 50 - rotX * HOLO_SHIFT;
+          const spotX = 50 + rotY * 2.5;
+          const spotY = 50 - rotX * 2.5;
+          const holoAngle = 115 + Math.atan2(rotX, rotY) * (180 / Math.PI);
+
+          holoOverlay.style.background = `
+            radial-gradient(circle at ${spotX.toFixed(1)}% ${spotY.toFixed(1)}%, rgba(255,255,255,0.35) 0%, transparent 60%),
+            linear-gradient(${holoAngle.toFixed(0)}deg, #ff000088, #ff880088, #ffff0088, #00ff0088, #0088ff88, #8800ff88, #ff000088)
+          `;
+          holoOverlay.style.backgroundSize = '100% 100%, var(--holo-size)';
+          holoOverlay.style.backgroundPosition = `center, ${holoX.toFixed(1)}% ${holoY.toFixed(1)}%`;
+
+          if (holoTexture) {
+            const texX = 50 + rotY * HOLO_SHIFT * 0.5;
+            const texY = 50 - rotX * HOLO_SHIFT * 0.5;
+            holoTexture.style.backgroundPosition = `${texX.toFixed(1)}% ${texY.toFixed(1)}%`;
+          }
+        }
+      }
+
+      function loop() {
+        viewerTiltCurrent.rx += (viewerTiltTarget.rx - viewerTiltCurrent.rx) * CARD_LERP;
+        viewerTiltCurrent.ry += (viewerTiltTarget.ry - viewerTiltCurrent.ry) * CARD_LERP;
+        applyTilt(viewerTiltCurrent.rx, viewerTiltCurrent.ry);
+        viewerTiltRAF = requestAnimationFrame(loop);
+      }
+
+      viewerTiltRAF = requestAnimationFrame(loop);
+
+      stage.addEventListener('mousemove', (e) => {
+        const rect = stage.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+        const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+        viewerTiltTarget.ry = x * CARD_TILT_MAX;
+        viewerTiltTarget.rx = -y * CARD_TILT_MAX;
+      });
+
+      stage.addEventListener('mouseleave', () => {
+        viewerTiltTarget.rx = 0;
+        viewerTiltTarget.ry = 0;
+      });
+
+      stage.addEventListener('touchmove', (e) => {
+        const touch = e.touches[0];
+        const rect = stage.getBoundingClientRect();
+        const x = ((touch.clientX - rect.left) / rect.width - 0.5) * 2;
+        const y = ((touch.clientY - rect.top) / rect.height - 0.5) * 2;
+        viewerTiltTarget.ry = x * CARD_TILT_MAX;
+        viewerTiltTarget.rx = -y * CARD_TILT_MAX;
+      }, { passive: true });
+
+      stage.addEventListener('touchend', () => {
+        viewerTiltTarget.rx = 0;
+        viewerTiltTarget.ry = 0;
+      });
+    }
+
+    function stopViewerTilt() {
+      if (viewerTiltRAF) {
+        cancelAnimationFrame(viewerTiltRAF);
+        viewerTiltRAF = null;
+      }
+      viewerTiltTarget = { rx: 0, ry: 0 };
+      viewerTiltCurrent = { rx: 0, ry: 0 };
+    }
+
+    /* =============================================
+       GYROSCOPE TILT (MOBILE)
+       ============================================= */
+    let gyroEnabled = false;
+    let gyroHandler = null;
+
+    function initGyroscope() {
+      if (gyroEnabled) return;
+
+      function handleOrientation(e) {
+        const beta = e.beta || 0;   // front-back tilt (-180 to 180)
+        const gamma = e.gamma || 0; // left-right tilt (-90 to 90)
+
+        // Map to tilt values — clamp to reasonable range
+        const rx = Math.max(-CARD_TILT_MAX, Math.min(CARD_TILT_MAX, (beta - 45) * 0.6));
+        const ry = Math.max(-CARD_TILT_MAX, Math.min(CARD_TILT_MAX, gamma * 0.6));
+
+        // Feed into whichever tilt system is active
+        if (packState === 'pack') {
+          packTiltTarget.rx = rx;
+          packTiltTarget.ry = ry;
+        } else if (packState === 'reveal') {
+          cardTiltTarget.rx = rx;
+          cardTiltTarget.ry = ry;
+        }
+        // Viewer overlay tilt is handled by touch only
+      }
+
+      // iOS 13+ requires permission
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function') {
+        // Permission must be requested from a user gesture — attach to first tap
+        document.addEventListener('click', function requestGyro() {
+          DeviceOrientationEvent.requestPermission().then(state => {
+            if (state === 'granted') {
+              window.addEventListener('deviceorientation', handleOrientation);
+              gyroEnabled = true;
+            }
+          }).catch(() => {});
+          document.removeEventListener('click', requestGyro);
+        }, { once: true });
+      } else if ('DeviceOrientationEvent' in window) {
+        window.addEventListener('deviceorientation', handleOrientation);
+        gyroEnabled = true;
+      }
+
+      gyroHandler = handleOrientation;
+    }
+
+    // Start gyroscope on mobile (feature detect)
+    if ('ontouchstart' in window) {
+      initGyroscope();
+    }
+
+    /* =============================================
+       EVENT LISTENERS
+       ============================================= */
+    setSelector.addEventListener('change', () => {
+      fetchSetData(setSelector.value);
+    });
+
+    openPackBtn.addEventListener('click', () => {
+      if (!isSetLoaded) return;
+      currentPack = generatePack();
+      console.log('Generated pack:', currentPack);
+      showPack();
+    });
+
+    /* =============================================
+       INIT
+       ============================================= */
+    fetchSetData(setSelector.value);
+  </script>
+
+</body>
+</html>
