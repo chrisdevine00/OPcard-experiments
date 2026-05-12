@@ -43,6 +43,12 @@
       box-sizing: border-box;
     }
 
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+
     body {
       font-family: var(--font-family);
       background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-gradient) 100%);
@@ -54,7 +60,17 @@
       align-items: center;
       -webkit-user-select: none;
       user-select: none;
-      overflow-x: hidden;
+      touch-action: manipulation;
+    }
+
+    /* Lock the interactive surfaces against browser scroll/zoom gestures */
+    .pack-container,
+    .pack-container *,
+    .card-stack,
+    .card-stack *,
+    .card-viewer-stage,
+    .card-viewer-stage * {
+      touch-action: none;
     }
 
     /* =============================================
@@ -166,6 +182,11 @@
       min-height: 300px;
       width: 100%;
       max-width: 600px;
+      flex: 1 1 auto;
+      overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
     }
 
     /* =============================================
@@ -1375,23 +1396,39 @@
 
     /**
      * Load a pack image with cascading fallback: primary → thumbnail → CSS fallback.
+     * Uses crossOrigin=anonymous loader probes so 403/CORS errors from hotlink
+     * protection reliably surface as 'error' events rather than silently rendering.
      */
     function loadPackImage(imgEl, setId, fallbackEl) {
+      const showFallback = () => {
+        imgEl.style.display = 'none';
+        imgEl.removeAttribute('src');
+        if (fallbackEl) fallbackEl.classList.add('active');
+      };
+
       const urls = PACK_IMAGE_MAP[setId];
       if (!urls) {
-        imgEl.style.display = 'none';
-        if (fallbackEl) fallbackEl.classList.add('active');
+        showFallback();
         return;
       }
 
-      imgEl.src = urls.primary;
-      imgEl.onerror = function() {
-        imgEl.src = urls.thumb;
-        imgEl.onerror = function() {
-          imgEl.style.display = 'none';
-          if (fallbackEl) fallbackEl.classList.add('active');
+      // Reset state in case this element was reused
+      imgEl.style.display = '';
+      if (fallbackEl) fallbackEl.classList.remove('active');
+
+      const tryLoad = (url, onFail) => {
+        const probe = new Image();
+        probe.onload = () => {
+          imgEl.onerror = onFail;
+          imgEl.src = url;
         };
+        probe.onerror = onFail;
+        probe.src = url;
       };
+
+      tryLoad(urls.primary, () => {
+        tryLoad(urls.thumb, showFallback);
+      });
     }
 
     /**
@@ -1531,7 +1568,12 @@
         }
       });
 
+      container.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+      }, { passive: false });
+
       container.addEventListener('touchmove', (e) => {
+        e.preventDefault();
         if (packState === 'tearing') return;
         const touch = e.touches[0];
         const rect = container.getBoundingClientRect();
@@ -1543,7 +1585,7 @@
           shine.style.setProperty('--shine-x', `${x * 100}%`);
           shine.style.setProperty('--shine-y', `${y * 100}%`);
         }
-      }, { passive: true });
+      }, { passive: false });
 
       container.addEventListener('touchend', () => {
         packTiltTarget.rx = 0;
@@ -1856,13 +1898,14 @@
       });
 
       container.addEventListener('touchmove', (e) => {
+        e.preventDefault();
         const touch = e.touches[0];
         const rect = container.getBoundingClientRect();
         const x = ((touch.clientX - rect.left) / rect.width - 0.5) * 2;
         const y = ((touch.clientY - rect.top) / rect.height - 0.5) * 2;
         cardTiltTarget.ry = x * CARD_TILT_MAX;
         cardTiltTarget.rx = -y * CARD_TILT_MAX;
-      }, { passive: true });
+      }, { passive: false });
 
       container.addEventListener('touchend', () => {
         cardTiltTarget.rx = 0;
@@ -1996,9 +2039,14 @@
 
     function initSwipeUp(container) {
       container.addEventListener('touchstart', (e) => {
+        e.preventDefault();
         swipeStartY = e.touches[0].clientY;
         swipeStartX = e.touches[0].clientX;
-      }, { passive: true });
+      }, { passive: false });
+
+      container.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+      }, { passive: false });
 
       container.addEventListener('touchend', (e) => {
         const dy = swipeStartY - e.changedTouches[0].clientY;
@@ -2006,7 +2054,7 @@
         if (dy > 50 && dx < 30) {
           advanceCard();
         }
-      }, { passive: true });
+      }, { passive: false });
     }
 
     /* =============================================
@@ -2185,13 +2233,14 @@
       });
 
       stage.addEventListener('touchmove', (e) => {
+        e.preventDefault();
         const touch = e.touches[0];
         const rect = stage.getBoundingClientRect();
         const x = ((touch.clientX - rect.left) / rect.width - 0.5) * 2;
         const y = ((touch.clientY - rect.top) / rect.height - 0.5) * 2;
         viewerTiltTarget.ry = x * CARD_TILT_MAX;
         viewerTiltTarget.rx = -y * CARD_TILT_MAX;
-      }, { passive: true });
+      }, { passive: false });
 
       stage.addEventListener('touchend', () => {
         viewerTiltTarget.rx = 0;
