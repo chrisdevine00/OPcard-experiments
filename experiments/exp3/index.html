@@ -45,25 +45,27 @@
 
     html, body {
       height: 100%;
+      width: 100%;
       overflow: hidden;
       overscroll-behavior: none;
+      touch-action: none;
+      position: fixed;
+      top: 0;
+      left: 0;
     }
 
     body {
       font-family: var(--font-family);
       background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-gradient) 100%);
       color: var(--text-primary);
-      min-height: 100vh;
-      min-height: 100dvh;
       display: flex;
       flex-direction: column;
       align-items: center;
       -webkit-user-select: none;
       user-select: none;
-      touch-action: manipulation;
     }
 
-    /* Lock the interactive surfaces against browser scroll/zoom gestures */
+    /* Belt-and-suspenders: explicitly disable browser gestures on interactive surfaces */
     .pack-container,
     .pack-container *,
     .card-stack,
@@ -183,10 +185,8 @@
       width: 100%;
       max-width: 600px;
       flex: 1 1 auto;
-      overflow-y: auto;
-      overflow-x: hidden;
-      overscroll-behavior: contain;
-      -webkit-overflow-scrolling: touch;
+      min-height: 0;
+      overflow: hidden;
     }
 
     /* =============================================
@@ -881,6 +881,11 @@
       width: 100%;
       padding: 1rem;
       max-width: 500px;
+      max-height: 100%;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
     }
 
     .summary-title {
@@ -1396,8 +1401,7 @@
 
     /**
      * Load a pack image with cascading fallback: primary → thumbnail → CSS fallback.
-     * Uses crossOrigin=anonymous loader probes so 403/CORS errors from hotlink
-     * protection reliably surface as 'error' events rather than silently rendering.
+     * onerror/onload are wired BEFORE src so the cascade always fires.
      */
     function loadPackImage(imgEl, setId, fallbackEl) {
       const showFallback = () => {
@@ -1412,23 +1416,24 @@
         return;
       }
 
-      // Reset state in case this element was reused
+      // Reset state
       imgEl.style.display = '';
       if (fallbackEl) fallbackEl.classList.remove('active');
 
-      const tryLoad = (url, onFail) => {
-        const probe = new Image();
-        probe.onload = () => {
-          imgEl.onerror = onFail;
-          imgEl.src = url;
-        };
-        probe.onerror = onFail;
-        probe.src = url;
-      };
+      let attempt = 0;
+      const sources = [urls.primary, urls.thumb];
 
-      tryLoad(urls.primary, () => {
-        tryLoad(urls.thumb, showFallback);
-      });
+      imgEl.onload = () => { /* success, leave visible */ };
+      imgEl.onerror = () => {
+        attempt += 1;
+        if (attempt < sources.length) {
+          imgEl.src = sources[attempt];
+        } else {
+          showFallback();
+        }
+      };
+      imgEl.referrerPolicy = 'no-referrer';
+      imgEl.src = sources[0];
     }
 
     /**
@@ -2324,6 +2329,22 @@
       console.log('Generated pack:', currentPack);
       showPack();
     });
+
+    /* =============================================
+       GLOBAL TOUCH LOCK
+       Prevent any unhandled touch from rubber-banding or scrolling the page.
+       Allow scroll only inside the summary area (when user has pulled a pack).
+       ============================================= */
+    document.addEventListener('touchmove', (e) => {
+      // Allow native scroll only if the touch is inside an explicitly scrollable region
+      if (e.target.closest('.summary-area')) return;
+      e.preventDefault();
+    }, { passive: false });
+
+    // Prevent double-tap zoom and gesture events on iOS
+    document.addEventListener('gesturestart', (e) => e.preventDefault());
+    document.addEventListener('gesturechange', (e) => e.preventDefault());
+    document.addEventListener('gestureend', (e) => e.preventDefault());
 
     /* =============================================
        INIT
