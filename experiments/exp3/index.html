@@ -184,12 +184,11 @@
       align-items: center;
       justify-content: flex-start;
       padding: 1rem 1rem;
-      min-height: 300px;
+      min-height: 0;
       width: 100%;
       max-width: 600px;
       flex: 1 1 auto;
-      min-height: 0;
-      overflow: hidden;
+      overflow: visible;
     }
 
     /* =============================================
@@ -738,12 +737,27 @@
       }
     }
 
-    /* Departing card slides up and fades via CSS transition */
+    /* Departing card flies up off-screen with a graceful fade */
     .stack-card.departing {
-      transform: translateY(-110%) scale(0.95) !important;
-      opacity: 0 !important;
+      animation: cardFlyAway 0.55s cubic-bezier(0.32, 0, 0.16, 1) forwards;
       pointer-events: none;
       z-index: 20;
+      transition: none !important;
+    }
+
+    @keyframes cardFlyAway {
+      0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+      30% {
+        transform: translateY(-20%) scale(1.02);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-160%) scale(0.85);
+        opacity: 0;
+      }
     }
 
     /* Holo rainbow overlay */
