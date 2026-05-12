@@ -1335,38 +1335,30 @@
        ============================================= */
 
     /**
-     * Pack image URL map — real booster pack artwork from official OPTCG site.
-     * Primary: high-res product shot (.webp). Thumbnail: fallback (.png).
+     * Pack image URL map — locally hosted booster pack artwork.
+     * Originals at en.onepiece-cardgame.com are blocked cross-origin by
+     * Cross-Origin-Resource-Policy: same-site, so we mirror them in /pack-images/.
      */
     const PACK_IMAGE_MAP = {
-      'OP-01':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op01/img_item01.webp',
-                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op01/img_thumbnail.png' },
-      'OP-02':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op02/img_item01.webp',
-                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op02/img_thumbnail.png' },
-      'OP-03':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op03/img_item01.webp',
-                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op03/img_thumbnail.png' },
-      'OP-04':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op04/img_item01.webp',
-                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op04/img_thumbnail.png' },
-      'OP-05':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op05/img_item01.webp',
-                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op05/img_thumbnail.png' },
-      'OP-06':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op06/img_item01.webp',
-                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op06/img_thumbnail.png' },
-      'OP-07':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op07/img_item01.webp',
-                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op07/img_thumbnail.png' },
-      'OP-08':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op08/img_item01.webp',
-                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op08/img_thumbnail.png' },
-      'OP-09':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op09/img_item01.webp',
-                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op09/img_thumbnail.png' },
-      'OP-10':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op10/img_item01.webp',
-                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op10/img_thumbnail.png' },
-      'OP-11':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op11/img_item01.webp',
-                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op11/img_thumbnail.png' },
-      'OP-12':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op12/img_item01.webp',
-                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op12/img_thumbnail.png' },
-      'OP-13':    { primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op13/img_item01.webp',
-                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op13/img_thumbnail.png' },
-      'OP14-EB04':{ primary: 'https://en.onepiece-cardgame.com/renewal/images/products/boosters/op14/img_item01.webp',
-                    thumb: 'https://en.onepiece-cardgame.com/images/products/boosters/op14-eb04/img_thumbnail.png' },
+      'OP-01':    { primary: 'pack-images/op01.webp' },
+      'OP-02':    { primary: 'pack-images/op02.webp' },
+      'OP-03':    { primary: 'pack-images/op03.webp' },
+      'OP-04':    { primary: 'pack-images/op04.webp' },
+      'OP-05':    { primary: 'pack-images/op05.webp' },
+      'OP-06':    { primary: 'pack-images/op06.webp' },
+      'OP-07':    { primary: 'pack-images/op07.webp' },
+      'OP-08':    { primary: 'pack-images/op08.webp' },
+      'OP-09':    { primary: 'pack-images/op09.webp' },
+      'OP-10':    { primary: 'pack-images/op10.webp' },
+      'OP-11':    { primary: 'pack-images/op11.webp' },
+      'OP-12':    { primary: 'pack-images/op12.webp' },
+      'OP-13':    { primary: 'pack-images/op13.webp' },
+      'OP14-EB04':{ primary: 'pack-images/op14.webp' },
+      'EB-01':    { primary: 'pack-images/eb01.webp' },
+      'EB-02':    { primary: 'pack-images/eb02.webp' },
+      'EB-03':    { primary: 'pack-images/eb03.webp' },
+      'PRB-01':   { primary: 'pack-images/prb01.webp' },
+      'PRB-02':   { primary: 'pack-images/prb02.webp' },
     };
 
     /**
@@ -1423,8 +1415,8 @@
       imgEl.style.display = '';
       if (fallbackEl) fallbackEl.classList.remove('active');
 
+      const sources = [urls.primary, urls.thumb].filter(Boolean);
       let attempt = 0;
-      const sources = [urls.primary, urls.thumb];
 
       imgEl.onload = () => { /* success, leave visible */ };
       imgEl.onerror = () => {
@@ -1435,7 +1427,6 @@
           showFallback();
         }
       };
-      imgEl.referrerPolicy = 'no-referrer';
       imgEl.src = sources[0];
     }
 
@@ -1576,9 +1567,16 @@
         }
       });
 
+      // Tap detection — call tearPack on a tap (no significant movement).
+      // We can't use {click} because touch-action:none + preventDefault elsewhere
+      // can suppress iOS's synthetic click. Track touch start/end ourselves.
+      let tapStartX = 0, tapStartY = 0, tapMoved = false;
+
       container.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-      }, { passive: false });
+        tapStartX = e.touches[0].clientX;
+        tapStartY = e.touches[0].clientY;
+        tapMoved = false;
+      }, { passive: true });
 
       container.addEventListener('touchmove', (e) => {
         e.preventDefault();
@@ -1593,16 +1591,23 @@
           shine.style.setProperty('--shine-x', `${x * 100}%`);
           shine.style.setProperty('--shine-y', `${y * 100}%`);
         }
+        const dx = Math.abs(touch.clientX - tapStartX);
+        const dy = Math.abs(touch.clientY - tapStartY);
+        if (dx > 8 || dy > 8) tapMoved = true;
       }, { passive: false });
 
-      container.addEventListener('touchend', () => {
+      container.addEventListener('touchend', (e) => {
         packTiltTarget.rx = 0;
         packTiltTarget.ry = 0;
         if (shine) {
           shine.style.setProperty('--shine-x', '50%');
           shine.style.setProperty('--shine-y', '50%');
         }
-      });
+        if (!tapMoved && packState === 'pack') {
+          e.preventDefault();
+          tearPack();
+        }
+      }, { passive: false });
     }
 
     function stopPackTilt() {
